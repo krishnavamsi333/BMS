@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMS Log Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .upload-section {
+            padding: 40px;
+            text-align: center;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        .file-name {
+            margin-top: 15px;
+            color: #666;
+            font-style: italic;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px 40px;
+            background: #f8f9fa;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-value {
+            color: #333;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        .charts-section {
+            padding: 40px;
+        }
+        .chart-container {
+            margin-bottom: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .chart-title {
+            font-size: 1.3em;
+            color: #333;
+            font-weight: 600;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .chart-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .chart-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        .chart-btn:active {
+            transform: translateY(0);
+        }
+        .zoom-info {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #667eea;
+            font-weight: 500;
+        }
+        canvas {
+            max-height: 300px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #e74c3c;
+            padding: 20px;
+            text-align: center;
+            background: #ffebee;
+            margin: 20px 40px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ BMS Log Visualizer</h1>
+            <p class="subtitle">Upload your YAML battery logs to visualize voltage, current, SOC, and power over time</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".yaml,.yml,.txt">
+                <label for="fileInput" class="file-label">📁 Choose YAML File</label>
+            </div>
+            <div class="file-name" id="fileName">No file selected</div>
+        </div>
+
+        <div id="statsSection" style="display:none;" class="stats"></div>
+        <div id="loadingSection" style="display:none;" class="loading">
+            <div class="spinner"></div>
+            <div>Processing your BMS logs...</div>
+        </div>
+        <div id="errorSection" style="display:none;" class="error"></div>
+        <div id="chartsSection" class="charts-section" style="display:none;">
+            <div class="zoom-info">
+                🔍 <strong>Zoom Controls:</strong> Scroll wheel to zoom | Click and drag to pan | Use reset buttons to restore view
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">Voltage over Time (V)</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="resetZoom('voltage')">🔄 Reset Zoom</button>
+                    </div>
+                </div>
+                <canvas id="voltageChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">Current over Time (A)</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="resetZoom('current')">🔄 Reset Zoom</button>
+                    </div>
+                </div>
+                <canvas id="currentChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">State of Charge over Time (%)</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="resetZoom('soc')">🔄 Reset Zoom</button>
+                    </div>
+                </div>
+                <canvas id="socChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">Power over Time (W)</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn" onclick="resetZoom('power')">🔄 Reset Zoom</button>
+                    </div>
+                </div>
+                <canvas id="powerChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let charts = {};
+
+        function resetZoom(chartName) {
+            if (charts[chartName]) {
+                charts[chartName].resetZoom();
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                processFile(file);
+            }
+        });
+
+        function parseYAML(text) {
+            const entries = [];
+            const blocks = text.split('---').filter(b => b.trim());
+            
+            for (let block of blocks) {
+                const lines = block.trim().split('\n');
+                const entry = {};
+                let inTimestamp = false;
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    // Check if we're entering timestamp section
+                    if (line.startsWith('timestamp:') || line === 'imestamp:') {
+                        inTimestamp = true;
+                        continue;
+                    }
+                    
+                    // Parse timestamp fields
+                    if (inTimestamp && line.includes('sec:')) {
+                        const match = line.match(/sec:\s*(\d+)/);
+                        if (match) entry.sec = parseInt(match[1]);
+                    } else if (inTimestamp && line.includes('nanosec:')) {
+                        const match = line.match(/nanosec:\s*(\d+)/);
+                        if (match) entry.nanosec = parseInt(match[1]);
+                        inTimestamp = false; // End of timestamp section
+                    }
+                    // Parse other fields
+                    else if (line.includes('voltage:')) {
+                        const match = line.match(/voltage:\s*([-\d.]+)/);
+                        if (match) entry.voltage = parseFloat(match[1]);
+                    } else if (line.includes('current:')) {
+                        const match = line.match(/current:\s*([-\d.]+)/);
+                        if (match) entry.current = parseFloat(match[1]);
+                    } else if (line.includes('soc:')) {
+                        const match = line.match(/soc:\s*([-\d.]+)/);
+                        if (match) entry.soc = parseFloat(match[1]);
+                    } else if (line.includes('power:')) {
+                        const match = line.match(/power:\s*([-\d.]+)/);
+                        if (match) entry.power = parseFloat(match[1]);
+                    }
+                }
+                
+                // Only add entry if it has valid data
+                if (entry.sec !== undefined && !isNaN(entry.sec)) {
+                    entries.push(entry);
+                }
+            }
+            
+            return entries;
+        }
+
+        function processFile(file) {
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('chartsSection').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    const data = parseYAML(text);
+                    
+                    if (data.length === 0) {
+                        throw new Error('No valid data found in file');
+                    }
+
+                    displayStats(data);
+                    createCharts(data);
+                    
+                    document.getElementById('loadingSection').style.display = 'none';
+                    document.getElementById('chartsSection').style.display = 'block';
+                    document.getElementById('statsSection').style.display = 'grid';
+                } catch (error) {
+                    document.getElementById('loadingSection').style.display = 'none';
+                    document.getElementById('errorSection').style.display = 'block';
+                    document.getElementById('errorSection').textContent = 'Error: ' + error.message;
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function displayStats(data) {
+            const voltages = data.map(d => d.voltage).filter(v => v !== undefined);
+            const currents = data.map(d => d.current).filter(v => v !== undefined);
+            const powers = data.map(d => d.power).filter(v => v !== undefined);
+            
+            // Calculate duration from ROS2 timestamps
+            const startSec = data[0].sec;
+            const endSec = data[data.length - 1].sec;
+            const duration = (endSec - startSec).toFixed(2);
+            
+            const stats = [
+                { label: 'Total Records', value: data.length },
+                { label: 'Start Time', value: startSec + ' sec' },
+                { label: 'End Time', value: endSec + ' sec' },
+                { label: 'Duration', value: duration + ' sec' },
+                { label: 'Avg Voltage', value: (voltages.reduce((a,b) => a+b, 0) / voltages.length).toFixed(2) + ' V' },
+                { label: 'Avg Current', value: (currents.reduce((a,b) => a+b, 0) / currents.length).toFixed(2) + ' A' },
+                { label: 'Avg Power', value: (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2) + ' W' },
+                { label: 'Min Voltage', value: Math.min(...voltages).toFixed(2) + ' V' },
+                { label: 'Max Voltage', value: Math.max(...voltages).toFixed(2) + ' V' },
+                { label: 'Sample Rate', value: (data.length / parseFloat(duration)).toFixed(2) + ' Hz' }
+            ];
+
+            const statsHTML = stats.map(s => `
+                <div class="stat-card">
+                    <div class="stat-label">${s.label}</div>
+                    <div class="stat-value">${s.value}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('statsSection').innerHTML = statsHTML;
+        }
+
+        function createCharts(data) {
+            // Destroy existing charts
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+
+            // Use actual ROS2 timestamp seconds as X-axis
+            const timestamps = data.map(d => d.sec);
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { 
+                        mode: 'index', 
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                return 'ROS2 Time: ' + context[0].label + ' sec';
+                            }
+                        }
+                    },
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                            modifierKey: null
+                        },
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                                speed: 0.1
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'x'
+                        },
+                        limits: {
+                            x: {min: 'original', max: 'original'}
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        title: {
+                            display: true,
+                            text: 'ROS2 Timestamp (seconds)'
+                        },
+                        ticks: { 
+                            maxTicksLimit: 15,
+                            autoSkip: true,
+                            callback: function(value, index, ticks) {
+                                return value;
+                            }
+                        }
+                    },
+                    y: { beginAtZero: false }
+                }
+            };
+
+            // Voltage Chart
+            charts.voltage = new Chart(document.getElementById('voltageChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Voltage (V)',
+                        data: data.map(d => d.voltage),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: commonOptions
+            });
+
+            // Current Chart
+            charts.current = new Chart(document.getElementById('currentChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Current (A)',
+                        data: data.map(d => d.current),
+                        borderColor: '#f093fb',
+                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: commonOptions
+            });
+
+            // SOC Chart
+            charts.soc = new Chart(document.getElementById('socChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'SOC (%)',
+                        data: data.map(d => d.soc),
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: commonOptions
+            });
+
+            // Power Chart
+            charts.power = new Chart(document.getElementById('powerChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Power (W)',
+                        data: data.map(d => d.power),
+                        borderColor: '#43e97b',
+                        backgroundColor: 'rgba(67, 233, 123, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+    </script>
+</body>
+</html>
