@@ -6,6 +6,7 @@
     <title>BMS Log Visualizer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -72,6 +73,32 @@
             color: #666;
             font-style: italic;
         }
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .control-btn {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #667eea;
+        }
+        .control-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        .control-btn.active {
+            background: #667eea;
+            color: white;
+        }
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -98,6 +125,9 @@
             font-size: 1.8em;
             font-weight: bold;
         }
+        .stat-value.good { color: #27ae60; }
+        .stat-value.warning { color: #f39c12; }
+        .stat-value.danger { color: #e74c3c; }
         .charts-section {
             padding: 40px;
         }
@@ -141,6 +171,12 @@
         .chart-btn:active {
             transform: translateY(0);
         }
+        .chart-btn.secondary {
+            background: #6c757d;
+        }
+        .chart-btn.secondary:hover {
+            background: #545b62;
+        }
         .zoom-info {
             background: #f0f4ff;
             padding: 15px;
@@ -151,7 +187,8 @@
             font-weight: 500;
         }
         canvas {
-            max-height: 300px;
+            max-height: 400px;
+            width: 100% !important;
         }
         .loading {
             text-align: center;
@@ -180,6 +217,77 @@
             margin: 20px 40px;
             border-radius: 8px;
         }
+        .alerts {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 40px;
+        }
+        .alert-title {
+            color: #856404;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .alert-item {
+            color: #856404;
+            margin: 5px 0;
+            padding-left: 15px;
+        }
+        .threshold-controls {
+            background: #e8f4fd;
+            padding: 20px;
+            margin: 20px 40px;
+            border-radius: 8px;
+        }
+        .threshold-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .threshold-label {
+            min-width: 120px;
+            font-weight: 500;
+        }
+        .threshold-input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+        }
+        .export-section {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8em;
+        }
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -195,64 +303,182 @@
                 <label for="fileInput" class="file-label">📁 Choose YAML File</label>
             </div>
             <div class="file-name" id="fileName">No file selected</div>
+            
+            <div class="controls">
+                <button class="control-btn active" onclick="setTimeMode('absolute')">Absolute Time</button>
+                <button class="control-btn" onclick="setTimeMode('relative')">Relative Time</button>
+                <button class="control-btn" onclick="toggleSmoothing()">Smoothing: Off</button>
+                <button class="control-btn" onclick="exportData()">📥 Export CSV</button>
+            </div>
         </div>
 
+        <div id="thresholdControls" class="threshold-controls" style="display:none;">
+            <h3>🚨 Alert Thresholds</h3>
+            <div class="threshold-row">
+                <span class="threshold-label">Voltage Low (V):</span>
+                <input type="number" id="thVoltageLow" class="threshold-input" value="48.0" step="0.1">
+                <span class="threshold-label">Voltage High (V):</span>
+                <input type="number" id="thVoltageHigh" class="threshold-input" value="60.0" step="0.1">
+            </div>
+            <div class="threshold-row">
+                <span class="threshold-label">Current Max (A):</span>
+                <input type="number" id="thCurrentMax" class="threshold-input" value="50.0" step="0.1">
+                <span class="threshold-label">SOC Low (%):</span>
+                <input type="number" id="thSocLow" class="threshold-input" value="20.0" step="1">
+            </div>
+            <button class="chart-btn" onclick="updateThresholds()">Update Alerts</button>
+        </div>
+
+        <div id="alertsSection" class="alerts" style="display:none;"></div>
         <div id="statsSection" style="display:none;" class="stats"></div>
         <div id="loadingSection" style="display:none;" class="loading">
             <div class="spinner"></div>
             <div>Processing your BMS logs...</div>
         </div>
         <div id="errorSection" style="display:none;" class="error"></div>
+        
         <div id="chartsSection" class="charts-section" style="display:none;">
             <div class="zoom-info">
                 🔍 <strong>Zoom Controls:</strong> Scroll wheel to zoom | Click and drag to pan | Use reset buttons to restore view
             </div>
+            
             <div class="chart-container">
                 <div class="chart-header">
                     <div class="chart-title">Voltage over Time (V)</div>
                     <div class="chart-controls">
+                        <button class="chart-btn secondary" onclick="downloadChart('voltage')">📷 Screenshot</button>
                         <button class="chart-btn" onclick="resetZoom('voltage')">🔄 Reset Zoom</button>
                     </div>
                 </div>
                 <canvas id="voltageChart"></canvas>
             </div>
+            
             <div class="chart-container">
                 <div class="chart-header">
                     <div class="chart-title">Current over Time (A)</div>
                     <div class="chart-controls">
+                        <button class="chart-btn secondary" onclick="downloadChart('current')">📷 Screenshot</button>
                         <button class="chart-btn" onclick="resetZoom('current')">🔄 Reset Zoom</button>
                     </div>
                 </div>
                 <canvas id="currentChart"></canvas>
             </div>
+            
             <div class="chart-container">
                 <div class="chart-header">
                     <div class="chart-title">State of Charge over Time (%)</div>
                     <div class="chart-controls">
+                        <button class="chart-btn secondary" onclick="downloadChart('soc')">📷 Screenshot</button>
                         <button class="chart-btn" onclick="resetZoom('soc')">🔄 Reset Zoom</button>
                     </div>
                 </div>
                 <canvas id="socChart"></canvas>
             </div>
+            
             <div class="chart-container">
                 <div class="chart-header">
                     <div class="chart-title">Power over Time (W)</div>
                     <div class="chart-controls">
+                        <button class="chart-btn secondary" onclick="downloadChart('power')">📷 Screenshot</button>
                         <button class="chart-btn" onclick="resetZoom('power')">🔄 Reset Zoom</button>
                     </div>
                 </div>
                 <canvas id="powerChart"></canvas>
             </div>
         </div>
+
+        <div class="export-section">
+            <button class="chart-btn" onclick="exportFullData()">📊 Export Full Dataset as CSV</button>
+            <div class="tooltip" style="margin-left: 10px;">
+                <button class="chart-btn secondary">ℹ️</button>
+                <span class="tooltiptext">Exports all parsed data including timestamps, voltage, current, SOC, and power values</span>
+            </div>
+        </div>
     </div>
 
     <script>
         let charts = {};
+        let currentData = [];
+        let timeMode = 'absolute';
+        let smoothingEnabled = false;
+        let thresholds = {
+            voltageLow: 48.0,
+            voltageHigh: 60.0,
+            currentMax: 50.0,
+            socLow: 20.0
+        };
+
+        function setTimeMode(mode) {
+            timeMode = mode;
+            document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (currentData.length > 0) {
+                createCharts(currentData);
+            }
+        }
+
+        function toggleSmoothing() {
+            smoothingEnabled = !smoothingEnabled;
+            event.target.textContent = 'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+            if (currentData.length > 0) {
+                createCharts(currentData);
+            }
+        }
+
+        function updateThresholds() {
+            thresholds.voltageLow = parseFloat(document.getElementById('thVoltageLow').value);
+            thresholds.voltageHigh = parseFloat(document.getElementById('thVoltageHigh').value);
+            thresholds.currentMax = parseFloat(document.getElementById('thCurrentMax').value);
+            thresholds.socLow = parseFloat(document.getElementById('thSocLow').value);
+            
+            if (currentData.length > 0) {
+                checkAlerts(currentData);
+                createCharts(currentData);
+            }
+        }
 
         function resetZoom(chartName) {
             if (charts[chartName]) {
                 charts[chartName].resetZoom();
             }
+        }
+
+        function downloadChart(chartName) {
+            if (charts[chartName]) {
+                const link = document.createElement('a');
+                link.download = `bms_${chartName}_chart.png`;
+                link.href = charts[chartName].toBase64Image();
+                link.click();
+            }
+        }
+
+        function exportData() {
+            if (currentData.length === 0) return;
+            
+            const filteredData = currentData.map(entry => {
+                const filtered = {};
+                Object.keys(entry).forEach(key => {
+                    if (entry[key] !== undefined && entry[key] !== null) {
+                        filtered[key] = entry[key];
+                    }
+                });
+                return filtered;
+            });
+            
+            const csv = PapaParse.unparse(filteredData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `bms_data_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportFullData() {
+            exportData();
         }
 
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -275,7 +501,7 @@
                 for (let line of lines) {
                     line = line.trim();
                     
-                    // Check if we're entering timestamp section
+                    // Handle timestamp section
                     if (line.startsWith('timestamp:') || line === 'imestamp:') {
                         inTimestamp = true;
                         continue;
@@ -288,7 +514,7 @@
                     } else if (inTimestamp && line.includes('nanosec:')) {
                         const match = line.match(/nanosec:\s*(\d+)/);
                         if (match) entry.nanosec = parseInt(match[1]);
-                        inTimestamp = false; // End of timestamp section
+                        inTimestamp = false;
                     }
                     // Parse other fields
                     else if (line.includes('voltage:')) {
@@ -306,13 +532,51 @@
                     }
                 }
                 
-                // Only add entry if it has valid data
+                // Calculate relative time and total timestamp
                 if (entry.sec !== undefined && !isNaN(entry.sec)) {
+                    entry.timestamp = entry.sec + (entry.nanosec || 0) * 1e-9;
                     entries.push(entry);
                 }
             }
             
+            // Calculate relative time
+            if (entries.length > 0) {
+                const firstTimestamp = entries[0].timestamp;
+                entries.forEach(entry => {
+                    entry.relativeTime = entry.timestamp - firstTimestamp;
+                });
+            }
+            
             return entries;
+        }
+
+        function smoothData(data, windowSize = 5) {
+            if (!smoothingEnabled || windowSize < 2) return data;
+            
+            const smoothed = JSON.parse(JSON.stringify(data));
+            const fields = ['voltage', 'current', 'power', 'soc'];
+            
+            fields.forEach(field => {
+                for (let i = 0; i < data.length; i++) {
+                    let sum = 0;
+                    let count = 0;
+                    
+                    for (let j = Math.max(0, i - Math.floor(windowSize/2)); 
+                         j <= Math.min(data.length - 1, i + Math.floor(windowSize/2)); 
+                         j++) {
+                        if (data[j][field] !== undefined) {
+                            sum += data[j][field];
+                            count++;
+                        }
+                    }
+                    
+                    if (count > 0) {
+                        smoothed[i][field] = sum / count;
+                    }
+                }
+            });
+            
+            return smoothed;
         }
 
         function processFile(file) {
@@ -320,6 +584,8 @@
             document.getElementById('chartsSection').style.display = 'none';
             document.getElementById('statsSection').style.display = 'none';
             document.getElementById('errorSection').style.display = 'none';
+            document.getElementById('alertsSection').style.display = 'none';
+            document.getElementById('thresholdControls').style.display = 'none';
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -331,12 +597,17 @@
                         throw new Error('No valid data found in file');
                     }
 
-                    displayStats(data);
-                    createCharts(data);
+                    currentData = data;
+                    const smoothedData = smoothData(data);
+                    
+                    displayStats(smoothedData);
+                    checkAlerts(smoothedData);
+                    createCharts(smoothedData);
                     
                     document.getElementById('loadingSection').style.display = 'none';
                     document.getElementById('chartsSection').style.display = 'block';
                     document.getElementById('statsSection').style.display = 'grid';
+                    document.getElementById('thresholdControls').style.display = 'block';
                 } catch (error) {
                     document.getElementById('loadingSection').style.display = 'none';
                     document.getElementById('errorSection').style.display = 'block';
@@ -346,33 +617,76 @@
             reader.readAsText(file);
         }
 
+        function checkAlerts(data) {
+            const alerts = [];
+            
+            // Check for low voltage
+            const lowVoltagePoints = data.filter(d => d.voltage < thresholds.voltageLow);
+            if (lowVoltagePoints.length > 0) {
+                alerts.push(`Low Voltage Alert: ${lowVoltagePoints.length} points below ${thresholds.voltageLow}V`);
+            }
+            
+            // Check for high voltage
+            const highVoltagePoints = data.filter(d => d.voltage > thresholds.voltageHigh);
+            if (highVoltagePoints.length > 0) {
+                alerts.push(`High Voltage Alert: ${highVoltagePoints.length} points above ${thresholds.voltageHigh}V`);
+            }
+            
+            // Check for high current
+            const highCurrentPoints = data.filter(d => Math.abs(d.current) > thresholds.currentMax);
+            if (highCurrentPoints.length > 0) {
+                alerts.push(`High Current Alert: ${highCurrentPoints.length} points above ${thresholds.currentMax}A`);
+            }
+            
+            // Check for low SOC
+            const lowSocPoints = data.filter(d => d.soc < thresholds.socLow);
+            if (lowSocPoints.length > 0) {
+                alerts.push(`Low SOC Alert: ${lowSocPoints.length} points below ${thresholds.socLow}%`);
+            }
+            
+            // Display alerts
+            const alertsSection = document.getElementById('alertsSection');
+            if (alerts.length > 0) {
+                alertsSection.style.display = 'block';
+                alertsSection.innerHTML = `
+                    <div class="alert-title">⚠️ System Alerts</div>
+                    ${alerts.map(alert => `<div class="alert-item">• ${alert}</div>`).join('')}
+                `;
+            } else {
+                alertsSection.style.display = 'none';
+            }
+        }
+
         function displayStats(data) {
             const voltages = data.map(d => d.voltage).filter(v => v !== undefined);
             const currents = data.map(d => d.current).filter(v => v !== undefined);
+            const socs = data.map(d => d.soc).filter(v => v !== undefined);
             const powers = data.map(d => d.power).filter(v => v !== undefined);
             
-            // Calculate duration from ROS2 timestamps
-            const startSec = data[0].sec;
-            const endSec = data[data.length - 1].sec;
-            const duration = (endSec - startSec).toFixed(2);
+            const avgVoltage = voltages.reduce((a,b) => a+b, 0) / voltages.length;
+            const avgCurrent = currents.reduce((a,b) => a+b, 0) / currents.length;
+            const minVoltage = Math.min(...voltages);
+            const maxVoltage = Math.max(...voltages);
+            
+            const voltageStatus = minVoltage < thresholds.voltageLow ? 'danger' : 
+                                maxVoltage > thresholds.voltageHigh ? 'warning' : 'good';
             
             const stats = [
                 { label: 'Total Records', value: data.length },
-                { label: 'Start Time', value: startSec + ' sec' },
-                { label: 'End Time', value: endSec + ' sec' },
-                { label: 'Duration', value: duration + ' sec' },
-                { label: 'Avg Voltage', value: (voltages.reduce((a,b) => a+b, 0) / voltages.length).toFixed(2) + ' V' },
-                { label: 'Avg Current', value: (currents.reduce((a,b) => a+b, 0) / currents.length).toFixed(2) + ' A' },
+                { label: 'Duration', value: (data[data.length-1].relativeTime || 0).toFixed(1) + ' sec' },
+                { label: 'Avg Voltage', value: avgVoltage.toFixed(2) + ' V', status: voltageStatus },
+                { label: 'Voltage Range', value: `${minVoltage.toFixed(2)} - ${maxVoltage.toFixed(2)} V` },
+                { label: 'Avg Current', value: avgCurrent.toFixed(2) + ' A' },
+                { label: 'Max Current', value: Math.max(...currents.map(Math.abs)).toFixed(2) + ' A' },
                 { label: 'Avg Power', value: (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2) + ' W' },
-                { label: 'Min Voltage', value: Math.min(...voltages).toFixed(2) + ' V' },
-                { label: 'Max Voltage', value: Math.max(...voltages).toFixed(2) + ' V' },
-                { label: 'Sample Rate', value: (data.length / parseFloat(duration)).toFixed(2) + ' Hz' }
+                { label: 'SOC Range', value: `${Math.min(...socs).toFixed(1)} - ${Math.max(...socs).toFixed(1)} %` },
+                { label: 'Data Rate', value: (data.length / (data[data.length-1].relativeTime || 1)).toFixed(1) + ' Hz' }
             ];
 
             const statsHTML = stats.map(s => `
                 <div class="stat-card">
                     <div class="stat-label">${s.label}</div>
-                    <div class="stat-value">${s.value}</div>
+                    <div class="stat-value ${s.status || ''}">${s.value}</div>
                 </div>
             `).join('');
 
@@ -384,16 +698,30 @@
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
 
-            // Use actual ROS2 timestamp seconds as X-axis
-            const timestamps = data.map(d => d.sec);
+            // Choose time values based on mode
+            const timeValues = timeMode === 'relative' ? 
+                data.map(d => d.relativeTime || 0) : 
+                data.map(d => d.timestamp || d.sec || 0);
+
+            const timeLabel = timeMode === 'relative' ? 
+                'Time (seconds since start)' : 'ROS2 Timestamp (seconds)';
 
             const commonOptions = {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 interaction: {
                     mode: 'nearest',
                     axis: 'x',
                     intersect: false
+                },
+                elements: {
+                    line: {
+                        tension: smoothingEnabled ? 0.4 : 0
+                    },
+                    point: {
+                        radius: 0,
+                        hoverRadius: 3
+                    }
                 },
                 plugins: {
                     legend: { display: false },
@@ -402,7 +730,10 @@
                         intersect: false,
                         callbacks: {
                             title: function(context) {
-                                return 'ROS2 Time: ' + context[0].label + ' sec';
+                                const value = context[0].parsed.x;
+                                return timeMode === 'relative' ? 
+                                    `Time: ${value.toFixed(1)}s` : 
+                                    `Timestamp: ${value}`;
                             }
                         }
                     },
@@ -431,87 +762,147 @@
                     x: { 
                         title: {
                             display: true,
-                            text: 'ROS2 Timestamp (seconds)'
+                            text: timeLabel
                         },
                         ticks: { 
                             maxTicksLimit: 15,
-                            autoSkip: true,
-                            callback: function(value, index, ticks) {
-                                return value;
-                            }
+                            autoSkip: true
                         }
                     },
-                    y: { beginAtZero: false }
+                    y: { 
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        }
+                    }
                 }
             };
 
-            // Voltage Chart
+            // Voltage Chart with thresholds
             charts.voltage = new Chart(document.getElementById('voltageChart'), {
                 type: 'line',
                 data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: 'Voltage (V)',
-                        data: data.map(d => d.voltage),
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.4
-                    }]
+                    labels: timeValues,
+                    datasets: [
+                        {
+                            label: 'Voltage (V)',
+                            data: data.map(d => d.voltage),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: 'Low Threshold',
+                            data: data.map(() => thresholds.voltageLow),
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'High Threshold',
+                            data: data.map(() => thresholds.voltageHigh),
+                            borderColor: '#f39c12',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
                 },
                 options: commonOptions
             });
 
-            // Current Chart
+            // Current Chart with threshold
             charts.current = new Chart(document.getElementById('currentChart'), {
                 type: 'line',
                 data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: 'Current (A)',
-                        data: data.map(d => d.current),
-                        borderColor: '#f093fb',
-                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.4
-                    }]
+                    labels: timeValues,
+                    datasets: [
+                        {
+                            label: 'Current (A)',
+                            data: data.map(d => d.current),
+                            borderColor: '#f093fb',
+                            backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: 'Max Threshold',
+                            data: data.map(() => thresholds.currentMax),
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Min Threshold',
+                            data: data.map(() => -thresholds.currentMax),
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
                 },
                 options: commonOptions
             });
 
-            // SOC Chart
+            // SOC Chart with threshold
             charts.soc = new Chart(document.getElementById('socChart'), {
                 type: 'line',
                 data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: 'SOC (%)',
-                        data: data.map(d => d.soc),
-                        borderColor: '#4facfe',
-                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.4
-                    }]
+                    labels: timeValues,
+                    datasets: [
+                        {
+                            label: 'SOC (%)',
+                            data: data.map(d => d.soc),
+                            borderColor: '#4facfe',
+                            backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: 'Low SOC Threshold',
+                            data: data.map(() => thresholds.socLow),
+                            borderColor: '#e74c3c',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
                 },
-                options: commonOptions
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
             });
 
             // Power Chart
             charts.power = new Chart(document.getElementById('powerChart'), {
                 type: 'line',
                 data: {
-                    labels: timestamps,
+                    labels: timeValues,
                     datasets: [{
                         label: 'Power (W)',
                         data: data.map(d => d.power),
                         borderColor: '#43e97b',
                         backgroundColor: 'rgba(67, 233, 123, 0.1)',
                         borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.4
+                        fill: true
                     }]
                 },
                 options: commonOptions
