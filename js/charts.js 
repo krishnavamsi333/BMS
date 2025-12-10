@@ -1,14 +1,34 @@
+// js/charts.js
+
+function resetZoom(chartName) {
+    if (charts[chartName]) {
+        charts[chartName].resetZoom();
+    }
+}
+
+function downloadChart(chartName) {
+    if (charts[chartName]) {
+        const link = document.createElement('a');
+        link.download = `bms_${chartName}_chart.png`;
+        link.href = charts[chartName].toBase64Image();
+        link.click();
+    }
+}
+
 function createCharts(data) {
-    if (!window.charts) window.charts = {};
-    Object.values(window.charts).forEach(chart => chart.destroy());
-    window.charts = {};
+    // destroy old
+    Object.values(charts).forEach(chart => chart.destroy());
+    charts = {};
 
-    const timeValues = window.timeMode === 'relative' ? 
-        data.map(d => d.relativeTime || 0) : 
-        data.map(d => d.timestamp || d.sec || 0);
+    const timeValues =
+        timeMode === 'relative'
+            ? data.map(d => d.relativeTime || 0)
+            : data.map(d => d.timestamp || d.sec || 0);
 
-    const timeLabel = window.timeMode === 'relative' ? 
-        'Time (seconds since start)' : 'ROS2 Timestamp (seconds)';
+    const timeLabel =
+        timeMode === 'relative'
+            ? 'Time (seconds since start)'
+            : 'ROS2 Timestamp (seconds)';
 
     const commonOptions = {
         responsive: true,
@@ -20,7 +40,7 @@ function createCharts(data) {
         },
         elements: {
             line: {
-                tension: window.smoothingEnabled ? 0.4 : 0
+                tension: smoothingEnabled ? 0.4 : 0
             },
             point: {
                 radius: 0,
@@ -33,23 +53,22 @@ function createCharts(data) {
         },
         plugins: {
             legend: { display: false },
-            tooltip: { 
-                mode: 'index', 
+            tooltip: {
+                mode: 'index',
                 intersect: false,
                 callbacks: {
-                    title: function(context) {
+                    title: function (context) {
                         const value = context[0].parsed.x;
-                        return window.timeMode === 'relative' ? 
-                            `Time: ${value.toFixed(1)}s` : 
-                            `Timestamp: ${value}`;
+                        return timeMode === 'relative'
+                            ? `Time: ${value.toFixed(1)}s`
+                            : `Timestamp: ${value}`;
                     }
                 }
             },
             zoom: {
                 pan: {
                     enabled: true,
-                    mode: 'x',
-                    modifierKey: null
+                    mode: 'x'
                 },
                 zoom: {
                     wheel: {
@@ -62,22 +81,22 @@ function createCharts(data) {
                     mode: 'x'
                 },
                 limits: {
-                    x: {min: 'original', max: 'original'}
+                    x: { min: 'original', max: 'original' }
                 }
             }
         },
         scales: {
-            x: { 
+            x: {
                 title: {
                     display: true,
                     text: timeLabel
                 },
-                ticks: { 
+                ticks: {
                     maxTicksLimit: 15,
                     autoSkip: true
                 }
             },
-            y: { 
+            y: {
                 beginAtZero: false,
                 title: {
                     display: true,
@@ -87,11 +106,9 @@ function createCharts(data) {
         }
     };
 
-    const thresholds = window.thresholds;
-    const CONFIG = window.CONFIG;
-
+    // Voltage
     if (data.some(d => d.voltage !== undefined)) {
-        window.charts.voltage = new Chart(document.getElementById('voltageChart'), {
+        charts.voltage = new Chart(document.getElementById('voltageChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
@@ -128,8 +145,9 @@ function createCharts(data) {
         });
     }
 
+    // Current
     if (data.some(d => d.current !== undefined)) {
-        window.charts.current = new Chart(document.getElementById('currentChart'), {
+        charts.current = new Chart(document.getElementById('currentChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
@@ -166,8 +184,9 @@ function createCharts(data) {
         });
     }
 
+    // SOC
     if (data.some(d => d.soc !== undefined)) {
-        window.charts.soc = new Chart(document.getElementById('socChart'), {
+        charts.soc = new Chart(document.getElementById('socChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
@@ -205,37 +224,43 @@ function createCharts(data) {
         });
     }
 
+    // Power
     if (data.some(d => d.power !== undefined)) {
-        window.charts.power = new Chart(document.getElementById('powerChart'), {
+        charts.power = new Chart(document.getElementById('powerChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
-                datasets: [{
-                    label: 'Power (W)',
-                    data: data.map(d => d.power),
-                    borderColor: CONFIG.CHART.COLORS.power,
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    borderWidth: 2,
-                    fill: true
-                }]
+                datasets: [
+                    {
+                        label: 'Power (W)',
+                        data: data.map(d => d.power),
+                        borderColor: CONFIG.CHART.COLORS.power,
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    }
+                ]
             },
             options: commonOptions
         });
     }
 
+    // Energy
     if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
-        window.charts.energy = new Chart(document.getElementById('energyChart'), {
+        charts.energy = new Chart(document.getElementById('energyChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
-                datasets: [{
-                    label: 'Cumulative Energy (kWh)',
-                    data: data.map(d => d.cumulativeEnergyKWh || 0),
-                    borderColor: CONFIG.CHART.COLORS.energy,
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    borderWidth: 2,
-                    fill: true
-                }]
+                datasets: [
+                    {
+                        label: 'Cumulative Energy (kWh)',
+                        data: data.map(d => d.cumulativeEnergyKWh || 0),
+                        borderColor: CONFIG.CHART.COLORS.energy,
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    }
+                ]
             },
             options: {
                 ...commonOptions,
@@ -251,20 +276,5 @@ function createCharts(data) {
                 }
             }
         });
-    }
-}
-
-function resetZoom(chartName) {
-    if (window.charts && window.charts[chartName]) {
-        window.charts[chartName].resetZoom();
-    }
-}
-
-function downloadChart(chartName) {
-    if (window.charts && window.charts[chartName]) {
-        const link = document.createElement('a');
-        link.download = `bms_${chartName}_chart.png`;
-        link.href = window.charts[chartName].toBase64Image();
-        link.click();
     }
 }
