@@ -1,22 +1,5 @@
 // charts.js - Chart.js configurations
 
-// Chart configuration
-const CHART_CONFIG = {
-    COLORS: {
-        voltage: '#3b82f6',
-        current: '#8b5cf6',
-        soc: '#10b981',
-        power: '#f59e0b',
-        energy: '#8b5cf6',
-        threshold: '#ef4444',
-        warning: '#f59e0b'
-    },
-    ANIMATION: {
-        duration: 1000,
-        easing: 'easeOutQuart'
-    }
-};
-
 function createCharts(data) {
     // Destroy old charts
     Object.values(charts).forEach(chart => chart.destroy());
@@ -316,20 +299,20 @@ function createEnergyChart(timeValues, data, commonOptions) {
     });
 }
 
-// Chart utility functions
-function resetZoom(chartName) {
+// Chart utility functions - Make them global
+window.resetZoom = function(chartName) {
     if (charts[chartName]) {
         charts[chartName].resetZoom();
     }
 }
 
-function resetAllZoom() {
+window.resetAllZoom = function() {
     Object.values(charts).forEach(chart => {
         if (chart) chart.resetZoom();
     });
 }
 
-function downloadChart(chartName) {
+window.downloadChart = function(chartName) {
     if (charts[chartName]) {
         const link = document.createElement('a');
         link.download = `bms_${chartName}_chart.png`;

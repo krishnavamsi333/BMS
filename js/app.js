@@ -1,18 +1,5 @@
 // app.js - Main app logic & initialization
 
-// Global variables
-let charts = {};
-let currentData = [];
-let timeMode = 'absolute';
-let smoothingEnabled = false;
-let energyData = {
-    totalKWh: 0,
-    netKWh: 0,
-    chargedKWh: 0,
-    dischargedKWh: 0,
-    efficiency: 0
-};
-
 // Initialize the application
 function init() {
     bindEvents();
@@ -180,6 +167,9 @@ function clearData() {
     document.getElementById('fileName').textContent = 'No file selected';
     hideAllSections();
 }
+
+// Make functions available globally
+window.showError = showError;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

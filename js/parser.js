@@ -1,23 +1,5 @@
 // parser.js - YAML parsing with validation
 
-// Configuration
-const CONFIG = {
-    MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
-    THRESHOLDS: {
-        VOLTAGE: { min: 48.0, max: 60.0 },
-        CURRENT: { max: 50.0 },
-        SOC: { min: 20.0 }
-    }
-};
-
-// Thresholds
-let thresholds = {
-    voltageLow: CONFIG.THRESHOLDS.VOLTAGE.min,
-    voltageHigh: CONFIG.THRESHOLDS.VOLTAGE.max,
-    currentMax: CONFIG.THRESHOLDS.CURRENT.max,
-    socLow: CONFIG.THRESHOLDS.SOC.min
-};
-
 function validateFile(file) {
     if (!file) {
         throw new Error('No file selected');
