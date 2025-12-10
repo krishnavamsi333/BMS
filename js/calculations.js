@@ -1,3 +1,5 @@
+// js/calculations.js
+
 function calculateEnergyConsumption(data) {
     if (data.length < 2) return;
 
@@ -8,7 +10,8 @@ function calculateEnergyConsumption(data) {
     for (let i = 1; i < data.length; i++) {
         const prev = data[i - 1];
         const curr = data[i];
-        const timeDiffHours = (curr.relativeTime - prev.relativeTime) / 3600;
+        const timeDiffHours =
+            (curr.relativeTime - prev.relativeTime) / 3600;
         const avgPower = ((prev.power || 0) + (curr.power || 0)) / 2;
         const intervalEnergyWh = avgPower * timeDiffHours;
 
@@ -80,10 +83,16 @@ function smoothData(data, windowSize = 5) {
 
             for (
                 let j = Math.max(0, i - Math.floor(windowSize / 2));
-                j <= Math.min(data.length - 1, i + Math.floor(windowSize / 2));
+                j <= Math.min(
+                    data.length - 1,
+                    i + Math.floor(windowSize / 2)
+                );
                 j++
             ) {
-                if (data[j][field] !== undefined && !isNaN(data[j][field])) {
+                if (
+                    data[j][field] !== undefined &&
+                    !isNaN(data[j][field])
+                ) {
                     sum += data[j][field];
                     count++;
                 }
@@ -98,28 +107,16 @@ function smoothData(data, windowSize = 5) {
     return smoothed;
 }
 
-function updateProgress(percent, text) {
-    document.getElementById('progressFill').style.width = percent + '%';
-    document.getElementById('progressText').textContent = text;
-}
-
-function animateElements() {
-    setTimeout(() => {
-        document.querySelectorAll('.stat-card').forEach(card => {
-            card.classList.add('animate');
-        });
-        document.querySelectorAll('.chart-container').forEach(container => {
-            container.classList.add('animate');
-        });
-    }, 100);
-}
-
 function checkAlerts(data) {
     const alerts = [];
 
-    const lowVoltagePoints = data.filter(d => d.voltage < thresholds.voltageLow);
+    const lowVoltagePoints = data.filter(
+        d => d.voltage < thresholds.voltageLow
+    );
     if (lowVoltagePoints.length > 0) {
-        const minVoltage = Math.min(...lowVoltagePoints.map(p => p.voltage));
+        const minVoltage = Math.min(
+            ...lowVoltagePoints.map(p => p.voltage)
+        );
         alerts.push(
             `Low Voltage Alert: ${
                 lowVoltagePoints.length
@@ -133,13 +130,15 @@ function checkAlerts(data) {
         d => d.voltage > thresholds.voltageHigh
     );
     if (highVoltagePoints.length > 0) {
-        const maxVoltage = Math.max(...highVoltagePoints.map(p => p.voltage));
+        const maxVoltage = Math.max(
+            ...highVoltagePoints.map(p => p.voltage)
+        );
         alerts.push(
             `High Voltage Alert: ${
                 highVoltagePoints.length
-            } points above ${
-                thresholds.voltageHigh
-            }V (max: ${maxVoltage.toFixed(2)}V)`
+            } points above ${thresholds.voltageHigh}V (max: ${maxVoltage.toFixed(
+                2
+            )}V)`
         );
     }
 
@@ -165,7 +164,9 @@ function checkAlerts(data) {
         alerts.push(
             `Low SOC Alert: ${
                 lowSocPoints.length
-            } points below ${thresholds.socLow}% (min: ${minSoc.toFixed(1)}%)`
+            } points below ${thresholds.socLow}% (min: ${minSoc.toFixed(
+                1
+            )}%)`
         );
     }
 
@@ -192,7 +193,9 @@ function displayStats(data) {
     const currents = data
         .map(d => d.current)
         .filter(v => v !== undefined && !isNaN(v));
-    const socs = data.map(d => d.soc).filter(v => v !== undefined && !isNaN(v));
+    const socs = data
+        .map(d => d.soc)
+        .filter(v => v !== undefined && !isNaN(v));
     const powers = data
         .map(d => d.power)
         .filter(v => v !== undefined && !isNaN(v));
@@ -202,7 +205,8 @@ function displayStats(data) {
         return;
     }
 
-    const avgVoltage = voltages.reduce((a, b) => a + b, 0) / voltages.length;
+    const avgVoltage =
+        voltages.reduce((a, b) => a + b, 0) / voltages.length;
     const avgCurrent =
         currents.length > 0
             ? currents.reduce((a, b) => a + b, 0) / currents.length
@@ -221,7 +225,9 @@ function displayStats(data) {
         { label: 'Total Records', value: data.length },
         {
             label: 'Duration',
-            value: (data[data.length - 1].relativeTime || 0).toFixed(1) + ' sec'
+            value:
+                (data[data.length - 1].relativeTime || 0).toFixed(1) +
+                ' sec'
         },
         {
             label: 'Avg Voltage',
@@ -240,7 +246,9 @@ function displayStats(data) {
             label: 'Max Current',
             value:
                 currents.length > 0
-                    ? Math.max(...currents.map(Math.abs)).toFixed(2) + ' A'
+                    ? Math.max(
+                          ...currents.map(v => Math.abs(v))
+                      ).toFixed(2) + ' A'
                     : 'N/A'
         },
         {
@@ -248,13 +256,15 @@ function displayStats(data) {
             value:
                 powers.length > 0
                     ? (
-                          powers.reduce((a, b) => a + b, 0) / powers.length
+                          powers.reduce((a, b) => a + b, 0) /
+                          powers.length
                       ).toFixed(2) + ' W'
                     : 'N/A'
         },
         {
             label: 'Energy Used',
-            value: Math.abs(energyData.netKWh).toFixed(3) + ' kWh',
+            value:
+                Math.abs(energyData.netKWh).toFixed(3) + ' kWh',
             status: 'energy'
         },
         {
@@ -274,7 +284,9 @@ function displayStats(data) {
             s => `
         <div class="stat-card">
             <div class="stat-label">${s.label}</div>
-            <div class="stat-value ${s.status || ''}">${s.value}</div>
+            <div class="stat-value ${s.status || ''}">${
+                s.value
+            }</div>
         </div>
     `
         )

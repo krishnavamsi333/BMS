@@ -1,3 +1,5 @@
+// js/parser.js
+
 function parseYAML(text) {
     try {
         const entries = [];

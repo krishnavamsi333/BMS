@@ -1,7 +1,8 @@
-// Global configuration & state
+// js/config.js
 
+// App configuration
 const CONFIG = {
-    MAX_FILE_SIZE: 50 * 1024 * 1024,
+    MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
     CHART: {
         COLORS: {
             voltage: '#3b82f6',
@@ -11,10 +12,6 @@ const CONFIG = {
             energy: '#8b5cf6',
             threshold: '#ef4444',
             warning: '#f59e0b'
-        },
-        ANIMATION: {
-            duration: 1000,
-            easing: 'easeOutQuart'
         }
     },
     THRESHOLDS: {
@@ -24,7 +21,7 @@ const CONFIG = {
     }
 };
 
-// Global variables
+// Global state (shared across all JS files)
 let charts = {};
 let currentData = [];
 let timeMode = 'absolute';

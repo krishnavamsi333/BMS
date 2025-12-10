@@ -1,6 +1,23 @@
+// js/charts.js
+
+function resetZoom(chartName) {
+    if (charts[chartName]) {
+        charts[chartName].resetZoom();
+    }
+}
+
+function downloadChart(chartName) {
+    if (charts[chartName]) {
+        const link = document.createElement('a');
+        link.download = `bms_${chartName}_chart.png`;
+        link.href = charts[chartName].toBase64Image();
+        link.click();
+    }
+}
+
 function createCharts(data) {
     // Destroy old charts
-    Object.values(charts).forEach(chart => chart && chart.destroy());
+    Object.values(charts).forEach(chart => chart.destroy());
     charts = {};
 
     const timeValues =
@@ -40,7 +57,7 @@ function createCharts(data) {
                 mode: 'index',
                 intersect: false,
                 callbacks: {
-                    title: context => {
+                    title: function (context) {
                         const value = context[0].parsed.x;
                         return timeMode === 'relative'
                             ? `Time: ${value.toFixed(1)}s`
@@ -54,10 +71,7 @@ function createCharts(data) {
                     mode: 'x'
                 },
                 zoom: {
-                    wheel: {
-                        enabled: true,
-                        speed: 0.1
-                    },
+                    wheel: { enabled: true, speed: 0.1 },
                     pinch: { enabled: true },
                     mode: 'x'
                 },
@@ -87,7 +101,7 @@ function createCharts(data) {
         }
     };
 
-    // Voltage
+    // Voltage chart
     if (data.some(d => d.voltage !== undefined)) {
         charts.voltage = new Chart(
             document.getElementById('voltageChart'),
@@ -129,7 +143,7 @@ function createCharts(data) {
         );
     }
 
-    // Current
+    // Current chart
     if (data.some(d => d.current !== undefined)) {
         charts.current = new Chart(
             document.getElementById('currentChart'),
@@ -171,47 +185,50 @@ function createCharts(data) {
         );
     }
 
-    // SOC
+    // SOC chart
     if (data.some(d => d.soc !== undefined)) {
-        charts.soc = new Chart(document.getElementById('socChart'), {
-            type: 'line',
-            data: {
-                labels: timeValues,
-                datasets: [
-                    {
-                        label: 'SOC (%)',
-                        data: data.map(d => d.soc),
-                        borderColor: CONFIG.CHART.COLORS.soc,
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    },
-                    {
-                        label: 'Low SOC Threshold',
-                        data: data.map(() => thresholds.socLow),
-                        borderColor: CONFIG.CHART.COLORS.threshold,
-                        borderWidth: 1,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                ...commonOptions,
-                scales: {
-                    ...commonOptions.scales,
-                    y: {
-                        ...commonOptions.scales.y,
-                        min: 0,
-                        max: 100
+        charts.soc = new Chart(
+            document.getElementById('socChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: timeValues,
+                    datasets: [
+                        {
+                            label: 'SOC (%)',
+                            data: data.map(d => d.soc),
+                            borderColor: CONFIG.CHART.COLORS.soc,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            fill: true
+                        },
+                        {
+                            label: 'Low SOC Threshold',
+                            data: data.map(() => thresholds.socLow),
+                            borderColor: CONFIG.CHART.COLORS.threshold,
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            min: 0,
+                            max: 100
+                        }
                     }
                 }
             }
-        });
+        );
     }
 
-    // Power
+    // Power chart
     if (data.some(d => d.power !== undefined)) {
         charts.power = new Chart(
             document.getElementById('powerChart'),
@@ -235,7 +252,7 @@ function createCharts(data) {
         );
     }
 
-    // Energy
+    // Energy chart
     if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
         charts.energy = new Chart(
             document.getElementById('energyChart'),

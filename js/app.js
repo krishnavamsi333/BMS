@@ -1,60 +1,4 @@
-function init() {
-    bindEvents();
-    setupDefaultThresholds();
-}
-
-function bindEvents() {
-    document
-        .getElementById('fileInput')
-        .addEventListener('change', handleFileSelect);
-    document
-        .getElementById('absoluteTimeBtn')
-        .addEventListener('click', () => setTimeMode('absolute'));
-    document
-        .getElementById('relativeTimeBtn')
-        .addEventListener('click', () => setTimeMode('relative'));
-    document
-        .getElementById('smoothingBtn')
-        .addEventListener('click', toggleSmoothing);
-    document
-        .getElementById('exportBtn')
-        .addEventListener('click', exportData);
-    document
-        .getElementById('clearBtn')
-        .addEventListener('click', clearData);
-    document
-        .getElementById('updateThresholdsBtn')
-        .addEventListener('click', updateThresholds);
-    document
-        .getElementById('exportFullBtn')
-        .addEventListener('click', exportFullData);
-
-    window.addEventListener('error', function (e) {
-        showError(
-            `Unexpected error: ${
-                e.error?.message || 'Unknown error'
-            }`
-        );
-    });
-}
-
-function setupDefaultThresholds() {
-    document.getElementById('thVoltageLow').value =
-        thresholds.voltageLow;
-    document.getElementById('thVoltageHigh').value =
-        thresholds.voltageHigh;
-    document.getElementById('thCurrentMax').value =
-        thresholds.currentMax;
-    document.getElementById('thSocLow').value = thresholds.socLow;
-}
-
-function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) {
-        document.getElementById('fileName').textContent = file.name;
-        processFile(file);
-    }
-}
+// js/app.js
 
 function validateFile(file) {
     if (!file) {
@@ -65,9 +9,7 @@ function validateFile(file) {
         throw new Error(
             `File too large: ${(file.size / 1024 / 1024).toFixed(
                 2
-            )}MB (max ${
-                CONFIG.MAX_FILE_SIZE / 1024 / 1024
-            }MB)`
+            )}MB (max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`
         );
     }
 
@@ -87,27 +29,27 @@ function validateFile(file) {
     return true;
 }
 
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) {
+        document.getElementById('fileName').textContent = file.name;
+        processFile(file);
+    }
+}
+
 function processFile(file) {
     try {
         validateFile(file);
         cleanup();
 
-        document.getElementById('loadingSection').style.display =
-            'block';
-        document.getElementById('progressSection').style.display =
-            'block';
-        document.getElementById('chartsSection').style.display =
-            'none';
-        document.getElementById('statsSection').style.display =
-            'none';
-        document.getElementById('errorSection').style.display =
-            'none';
-        document.getElementById('alertsSection').style.display =
-            'none';
-        document.getElementById('thresholdControls').style.display =
-            'none';
-        document.getElementById('energySummary').style.display =
-            'none';
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('chartsSection').style.display = 'none';
+        document.getElementById('statsSection').style.display = 'none';
+        document.getElementById('errorSection').style.display = 'none';
+        document.getElementById('alertsSection').style.display = 'none';
+        document.getElementById('thresholdControls').style.display = 'none';
+        document.getElementById('energySummary').style.display = 'none';
 
         const reader = new FileReader();
         let processingTimeout;
@@ -121,9 +63,7 @@ function processFile(file) {
 
         reader.onprogress = function (e) {
             if (e.lengthComputable) {
-                const percent = Math.round(
-                    (e.loaded / e.total) * 100
-                );
+                const percent = Math.round((e.loaded / e.total) * 100);
                 updateProgress(percent, `Loading: ${percent}%`);
             }
         };
@@ -156,24 +96,19 @@ function processFile(file) {
                 updateProgress(100, 'Complete!');
 
                 setTimeout(() => {
-                    document.getElementById(
-                        'loadingSection'
-                    ).style.display = 'none';
-                    document.getElementById(
-                        'progressSection'
-                    ).style.display = 'none';
-                    document.getElementById(
-                        'chartsSection'
-                    ).style.display = 'block';
-                    document.getElementById(
-                        'statsSection'
-                    ).style.display = 'grid';
+                    document.getElementById('loadingSection').style.display =
+                        'none';
+                    document.getElementById('progressSection').style.display =
+                        'none';
+                    document.getElementById('chartsSection').style.display =
+                        'block';
+                    document.getElementById('statsSection').style.display =
+                        'grid';
                     document.getElementById(
                         'thresholdControls'
                     ).style.display = 'block';
-                    document.getElementById(
-                        'energySummary'
-                    ).style.display = 'block';
+                    document.getElementById('energySummary').style.display =
+                        'block';
                     animateElements();
                 }, 500);
             } catch (error) {
@@ -193,6 +128,106 @@ function processFile(file) {
     } catch (error) {
         showError(error.message);
     }
+}
+
+function setTimeMode(mode) {
+    timeMode = mode;
+    document
+        .querySelectorAll('.control-btn')
+        .forEach(btn => btn.classList.remove('active'));
+
+    if (mode === 'absolute') {
+        document
+            .getElementById('absoluteTimeBtn')
+            .classList.add('active');
+    } else {
+        document
+            .getElementById('relativeTimeBtn')
+            .classList.add('active');
+    }
+
+    if (currentData.length > 0) {
+        createCharts(currentData);
+    }
+}
+
+function toggleSmoothing() {
+    smoothingEnabled = !smoothingEnabled;
+    document.getElementById('smoothingBtn').textContent =
+        'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+    if (currentData.length > 0) {
+        createCharts(currentData);
+    }
+}
+
+function updateThresholds() {
+    thresholds.voltageLow = parseFloat(
+        document.getElementById('thVoltageLow').value
+    );
+    thresholds.voltageHigh = parseFloat(
+        document.getElementById('thVoltageHigh').value
+    );
+    thresholds.currentMax = parseFloat(
+        document.getElementById('thCurrentMax').value
+    );
+    thresholds.socLow = parseFloat(
+        document.getElementById('thSocLow').value
+    );
+
+    if (currentData.length > 0) {
+        checkAlerts(currentData);
+        createCharts(currentData);
+    }
+}
+
+function setupDefaultThresholds() {
+    document.getElementById('thVoltageLow').value =
+        thresholds.voltageLow;
+    document.getElementById('thVoltageHigh').value =
+        thresholds.voltageHigh;
+    document.getElementById('thCurrentMax').value =
+        thresholds.currentMax;
+    document.getElementById('thSocLow').value = thresholds.socLow;
+}
+
+function bindEvents() {
+    document
+        .getElementById('fileInput')
+        .addEventListener('change', handleFileSelect);
+    document
+        .getElementById('absoluteTimeBtn')
+        .addEventListener('click', () => setTimeMode('absolute'));
+    document
+        .getElementById('relativeTimeBtn')
+        .addEventListener('click', () => setTimeMode('relative'));
+    document
+        .getElementById('smoothingBtn')
+        .addEventListener('click', toggleSmoothing);
+    document
+        .getElementById('exportBtn')
+        .addEventListener('click', exportData);
+    document
+        .getElementById('clearBtn')
+        .addEventListener('click', clearData);
+    document
+        .getElementById('updateThresholdsBtn')
+        .addEventListener('click', updateThresholds);
+    document
+        .getElementById('exportFullBtn')
+        .addEventListener('click', exportFullData);
+
+    window.addEventListener('error', function (e) {
+        showError(
+            `Unexpected error: ${
+                (e.error && e.error.message) || 'Unknown error'
+            }`
+        );
+    });
+}
+
+function init() {
+    bindEvents();
+    setupDefaultThresholds();
 }
 
 document.addEventListener('DOMContentLoaded', init);
