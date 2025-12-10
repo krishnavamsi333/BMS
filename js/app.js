@@ -20,6 +20,7 @@ function bindEvents() {
     
     // Global error handling
     window.addEventListener('error', function(e) {
+        console.error('Global error:', e.error);
         showError(`Unexpected error: ${e.error?.message || 'Unknown error'}`);
     });
 }
@@ -36,45 +37,59 @@ function hideAllSections() {
 }
 
 function setupDefaultThresholds() {
-    document.getElementById('thVoltageLow').value = CONFIG.THRESHOLDS.VOLTAGE.min;
-    document.getElementById('thVoltageHigh').value = CONFIG.THRESHOLDS.VOLTAGE.max;
-    document.getElementById('thCurrentMax').value = CONFIG.THRESHOLDS.CURRENT.max;
-    document.getElementById('thSocLow').value = CONFIG.THRESHOLDS.SOC.min;
+    thresholds.voltageLow = CONFIG.THRESHOLDS.VOLTAGE.min;
+    thresholds.voltageHigh = CONFIG.THRESHOLDS.VOLTAGE.max;
+    thresholds.currentMax = CONFIG.THRESHOLDS.CURRENT.max;
+    thresholds.socLow = CONFIG.THRESHOLDS.SOC.min;
+    
+    document.getElementById('thVoltageLow').value = thresholds.voltageLow;
+    document.getElementById('thVoltageHigh').value = thresholds.voltageHigh;
+    document.getElementById('thCurrentMax').value = thresholds.currentMax;
+    document.getElementById('thSocLow').value = thresholds.socLow;
 }
 
-function handleFileSelect(e) {
+async function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file) {
         document.getElementById('fileName').textContent = file.name;
-        processFile(file);
+        await processFile(file);
     }
 }
 
 async function processFile(file) {
     try {
+        console.log('Processing file:', file.name);
         validateFile(file);
         cleanup();
         
         showLoading();
         
+        console.log('Reading file...');
         const text = await readFileAsText(file);
+        console.log('File read, parsing YAML...');
+        
         const data = parseYAML(text);
+        console.log('Parsed data points:', data.length);
         
         if (data.length === 0) {
             throw new Error('No valid data found in file. Please check the file format.');
         }
 
+        console.log('Processing data...');
         currentData = validateAndFilterData(data);
         calculateEnergyConsumption(currentData);
         const smoothedData = smoothData(currentData);
         
+        console.log('Creating visualizations...');
         displayStats(smoothedData);
         displayEnergySummary();
         checkAlerts(smoothedData);
         createCharts(smoothedData);
         
         showVisualizations();
+        console.log('Visualization complete!');
     } catch (error) {
+        console.error('Error in processFile:', error);
         showError('Error processing file: ' + error.message);
     } finally {
         hideLoading();
@@ -170,6 +185,12 @@ function clearData() {
 
 // Make functions available globally
 window.showError = showError;
+window.setTimeMode = setTimeMode;
+window.toggleSmoothing = toggleSmoothing;
+window.updateThresholds = updateThresholds;
+window.clearData = clearData;
+window.exportData = exportData;
+window.exportFullData = exportFullData;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
