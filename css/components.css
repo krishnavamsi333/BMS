@@ -1,18 +1,97 @@
-/* Reusable component helpers */
+/* ===========================
+   Reusable component helpers
+   =========================== */
 
+/* Base button – can be used anywhere */
 .btn {
     padding: 10px 20px;
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 0.9em;
+    font-size: 0.9rem;
     font-weight: 500;
+    border: 1px solid transparent;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    line-height: 1;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
     transition: var(--transition);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.25);
+    transform-origin: center;
 }
 
-/* If you want, you can start using .btn in HTML in addition to control-btn/chart-btn */
-.control-btn,
-.chart-btn {
-    /* inherit button base */
+/* Hover / active / focus styles for base button */
+.btn:hover {
+    background: #e5edf7;
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 2px;
+}
+
+/* Disabled state */
+.btn[disabled],
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Variant buttons */
+.btn--primary {
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: var(--shadow);
+}
+
+.btn--primary:hover {
+    filter: brightness(1.05);
+    box-shadow: var(--shadow-hover);
+}
+
+.btn--secondary {
+    background: var(--bg-secondary);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+.btn--secondary:hover {
+    background: #e5edf7;
+}
+
+.btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--accent-primary);
+}
+
+.btn--ghost:hover {
+    background: rgba(59, 130, 246, 0.06);
+}
+
+.btn--danger {
+    background: var(--danger);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.btn--danger:hover {
+    filter: brightness(1.05);
+    box-shadow: var(--shadow-hover);
 }
 
 /* Generic card style (can be reused later) */
@@ -22,4 +101,50 @@
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
     padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+/* Subtle highlight on hover */
+.card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(59, 130, 246, 0.08),
+        transparent 40%,
+        rgba(16, 185, 129, 0.08));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--accent-primary);
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+/* Focus ring if any interactive element inside is focused */
+.card:focus-within {
+    outline: 2px solid rgba(59, 130, 246, 0.35);
+    outline-offset: 2px;
+}
+
+/* Optional card variants */
+.card--success {
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.card--warning {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.card--danger {
+    border-color: rgba(239, 68, 68, 0.5);
 }
