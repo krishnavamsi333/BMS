@@ -1,0 +1,28 @@
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --primary: #3b82f6;
+  --text: #1e293b;
+  --border: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 1rem;
+}
+
+.hidden {
+  display: none;
+}
