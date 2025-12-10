@@ -46,6 +46,8 @@ let thresholds = {
 
 // ---------- Helpers ----------
 
+// js/utils.js
+
 function validateFile(file) {
     if (!file) {
         throw new Error('No file selected');
@@ -53,8 +55,8 @@ function validateFile(file) {
 
     if (file.size > CONFIG.MAX_FILE_SIZE) {
         throw new Error(
-            `File too large: ${(file.size/1024/1024).toFixed(2)}MB ` +
-            `(max ${CONFIG.MAX_FILE_SIZE/1024/1024}MB)`
+            `File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB ` +
+            `(max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`
         );
     }
 
@@ -69,6 +71,7 @@ function validateFile(file) {
 
     return true;
 }
+
 
 function updateProgress(percent, text) {
     const fill = document.getElementById('progressFill');
