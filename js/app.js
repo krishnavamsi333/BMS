@@ -1,29 +1,18 @@
 // js/app.js
 
-function init() {
-    bindEvents();
-    setupDefaultThresholds();
+function bindEvents() {
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+    document.getElementById('absoluteTimeBtn').addEventListener('click', () => setTimeMode('absolute'));
+    document.getElementById('relativeTimeBtn').addEventListener('click', () => setTimeMode('relative'));
+    document.getElementById('smoothingBtn').addEventListener('click', toggleSmoothing);
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('clearBtn').addEventListener('click', clearData);
+    document.getElementById('updateThresholdsBtn').addEventListener('click', updateThresholds);
+    document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
 
     window.addEventListener('error', function (e) {
         showError(`Unexpected error: ${e.error?.message || 'Unknown error'}`);
     });
-}
-
-function bindEvents() {
-    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-    document.getElementById('absoluteTimeBtn').addEventListener('click', () =>
-        setTimeMode('absolute')
-    );
-    document.getElementById('relativeTimeBtn').addEventListener('click', () =>
-        setTimeMode('relative')
-    );
-    document.getElementById('smoothingBtn').addEventListener('click', toggleSmoothing);
-    document.getElementById('exportBtn').addEventListener('click', exportData);
-    document.getElementById('clearBtn').addEventListener('click', clearData);
-    document
-        .getElementById('updateThresholdsBtn')
-        .addEventListener('click', updateThresholds);
-    document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
 }
 
 function setupDefaultThresholds() {
@@ -39,6 +28,25 @@ function handleFileSelect(e) {
         document.getElementById('fileName').textContent = file.name;
         processFile(file);
     }
+}
+
+function validateFile(file) {
+    if (!file) {
+        throw new Error('No file selected');
+    }
+
+    if (file.size > CONFIG.MAX_FILE_SIZE) {
+        throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB (max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`);
+    }
+
+    const validExtensions = ['.yaml', '.yml', '.txt'];
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+
+    if (!validExtensions.includes(fileExtension)) {
+        throw new Error(`Invalid file type. Please select a YAML file (${validExtensions.join(', ')})`);
+    }
+
+    return true;
 }
 
 function processFile(file) {
@@ -121,41 +129,21 @@ function processFile(file) {
     }
 }
 
-function cleanup() {
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-    charts = {};
-    currentData = [];
-    energyData = {
-        totalKWh: 0,
-        netKWh: 0,
-        chargedKWh: 0,
-        dischargedKWh: 0,
-        efficiency: 0
-    };
-}
-
-function clearData() {
-    cleanup();
-    document.getElementById('fileInput').value = '';
-    document.getElementById('fileName').textContent = 'No file selected';
-    document.getElementById('chartsSection').style.display = 'none';
-    document.getElementById('statsSection').style.display = 'none';
-    document.getElementById('thresholdControls').style.display = 'none';
-    document.getElementById('alertsSection').style.display = 'none';
-    document.getElementById('errorSection').style.display = 'none';
-    document.getElementById('energySummary').style.display = 'none';
-}
-
 function setTimeMode(mode) {
     timeMode = mode;
-    document.getElementById('absoluteTimeBtn').classList.toggle('active', mode === 'absolute');
-    document.getElementById('relativeTimeBtn').classList.toggle('active', mode === 'relative');
+
+    // Reset only the time mode buttons, not export/clear etc.
+    document.getElementById('absoluteTimeBtn').classList.remove('active');
+    document.getElementById('relativeTimeBtn').classList.remove('active');
+
+    if (mode === 'absolute') {
+        document.getElementById('absoluteTimeBtn').classList.add('active');
+    } else {
+        document.getElementById('relativeTimeBtn').classList.add('active');
+    }
 
     if (currentData.length > 0) {
-        const data = smoothData(currentData);
-        createCharts(data);
+        createCharts(currentData);
     }
 }
 
@@ -163,9 +151,9 @@ function toggleSmoothing() {
     smoothingEnabled = !smoothingEnabled;
     document.getElementById('smoothingBtn').textContent =
         'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+
     if (currentData.length > 0) {
-        const data = smoothData(currentData);
-        createCharts(data);
+        createCharts(currentData);
     }
 }
 
@@ -176,65 +164,14 @@ function updateThresholds() {
     thresholds.socLow = parseFloat(document.getElementById('thSocLow').value);
 
     if (currentData.length > 0) {
-        const data = smoothData(currentData);
-        checkAlerts(data);
-        createCharts(data);
+        checkAlerts(currentData);
+        createCharts(currentData);
     }
 }
 
-function exportData() {
-    if (currentData.length === 0) {
-        alert('No data to export. Please load a file first.');
-        return;
-    }
-
-    try {
-        const includeFields = [
-            'timestamp',
-            'relativeTime',
-            'voltage',
-            'current',
-            'soc',
-            'power',
-            'cumulativeEnergyKWh'
-        ];
-
-        const exportDataArray = currentData.map(entry => {
-            const row = {};
-            includeFields.forEach(field => {
-                row[field] =
-                    entry[field] !== undefined && entry[field] !== null ? entry[field] : '';
-            });
-            return row;
-        });
-
-        const csv = Papa.unparse(exportDataArray, {
-            header: true,
-            skipEmptyLines: true
-        });
-
-        downloadCSV(csv, `bms_data_${new Date().toISOString().slice(0, 10)}.csv`);
-
-        const exportBtn = document.getElementById('exportBtn');
-        if (exportBtn) {
-            const originalText = exportBtn.textContent;
-            exportBtn.textContent = '✅ Export Successful!';
-            exportBtn.style.background = 'var(--success)';
-            exportBtn.style.color = 'white';
-            setTimeout(() => {
-                exportBtn.textContent = originalText;
-                exportBtn.style.background = '';
-                exportBtn.style.color = '';
-            }, 2000);
-        }
-    } catch (error) {
-        console.error('Export error:', error);
-        alert('Export failed: ' + error.message);
-    }
-}
-
-function exportFullData() {
-    exportData();
+function init() {
+    bindEvents();
+    setupDefaultThresholds();
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -27,13 +27,8 @@ function parseYAML(text) {
                     }
                 });
 
-                if (
-                    entry.sec !== undefined &&
-                    !isNaN(entry.sec) &&
-                    (entry.voltage !== undefined ||
-                     entry.current !== undefined ||
-                     entry.soc !== undefined)
-                ) {
+                if (entry.sec !== undefined && !isNaN(entry.sec) &&
+                    (entry.voltage !== undefined || entry.current !== undefined || entry.soc !== undefined)) {
                     entry.timestamp = entry.sec + (entry.nanosec || 0) * 1e-9;
                     entries.push(entry);
                 }
@@ -61,10 +56,8 @@ function validateAndFilterData(data) {
             return (
                 entry.timestamp !== undefined &&
                 !isNaN(entry.timestamp) &&
-                (entry.voltage === undefined ||
-                    (!isNaN(entry.voltage) && entry.voltage > 0)) &&
-                (entry.soc === undefined ||
-                    (!isNaN(entry.soc) && entry.soc >= 0 && entry.soc <= 100))
+                (entry.voltage === undefined || (!isNaN(entry.voltage) && entry.voltage > 0)) &&
+                (entry.soc === undefined || (!isNaN(entry.soc) && entry.soc >= 0 && entry.soc <= 100))
             );
         })
         .map(entry => ({

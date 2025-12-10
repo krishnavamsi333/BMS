@@ -16,19 +16,17 @@ function downloadChart(chartName) {
 }
 
 function createCharts(data) {
-    // destroy old
+    // Destroy existing charts
     Object.values(charts).forEach(chart => chart.destroy());
     charts = {};
 
-    const timeValues =
-        timeMode === 'relative'
-            ? data.map(d => d.relativeTime || 0)
-            : data.map(d => d.timestamp || d.sec || 0);
+    const timeValues = timeMode === 'relative'
+        ? data.map(d => d.relativeTime || 0)
+        : data.map(d => d.timestamp || d.sec || 0);
 
-    const timeLabel =
-        timeMode === 'relative'
-            ? 'Time (seconds since start)'
-            : 'ROS2 Timestamp (seconds)';
+    const timeLabel = timeMode === 'relative'
+        ? 'Time (seconds since start)'
+        : 'ROS2 Timestamp (seconds)';
 
     const commonOptions = {
         responsive: true,
@@ -68,7 +66,8 @@ function createCharts(data) {
             zoom: {
                 pan: {
                     enabled: true,
-                    mode: 'x'
+                    mode: 'x',
+                    modifierKey: null
                 },
                 zoom: {
                     wheel: {
@@ -106,7 +105,7 @@ function createCharts(data) {
         }
     };
 
-    // Voltage
+    // Voltage chart
     if (data.some(d => d.voltage !== undefined)) {
         charts.voltage = new Chart(document.getElementById('voltageChart'), {
             type: 'line',
@@ -145,7 +144,7 @@ function createCharts(data) {
         });
     }
 
-    // Current
+    // Current chart
     if (data.some(d => d.current !== undefined)) {
         charts.current = new Chart(document.getElementById('currentChart'), {
             type: 'line',
@@ -184,7 +183,7 @@ function createCharts(data) {
         });
     }
 
-    // SOC
+    // SOC chart
     if (data.some(d => d.soc !== undefined)) {
         charts.soc = new Chart(document.getElementById('socChart'), {
             type: 'line',
@@ -224,43 +223,39 @@ function createCharts(data) {
         });
     }
 
-    // Power
+    // Power chart
     if (data.some(d => d.power !== undefined)) {
         charts.power = new Chart(document.getElementById('powerChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
-                datasets: [
-                    {
-                        label: 'Power (W)',
-                        data: data.map(d => d.power),
-                        borderColor: CONFIG.CHART.COLORS.power,
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    }
-                ]
+                datasets: [{
+                    label: 'Power (W)',
+                    data: data.map(d => d.power),
+                    borderColor: CONFIG.CHART.COLORS.power,
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 2,
+                    fill: true
+                }]
             },
             options: commonOptions
         });
     }
 
-    // Energy
+    // Energy chart
     if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
         charts.energy = new Chart(document.getElementById('energyChart'), {
             type: 'line',
             data: {
                 labels: timeValues,
-                datasets: [
-                    {
-                        label: 'Cumulative Energy (kWh)',
-                        data: data.map(d => d.cumulativeEnergyKWh || 0),
-                        borderColor: CONFIG.CHART.COLORS.energy,
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                        borderWidth: 2,
-                        fill: true
-                    }
-                ]
+                datasets: [{
+                    label: 'Cumulative Energy (kWh)',
+                    data: data.map(d => d.cumulativeEnergyKWh || 0),
+                    borderColor: CONFIG.CHART.COLORS.energy,
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true
+                }]
             },
             options: {
                 ...commonOptions,

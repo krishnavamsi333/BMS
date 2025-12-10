@@ -31,10 +31,37 @@ function calculateEnergyConsumption(data) {
         netKWh: totalEnergyWh / 1000,
         chargedKWh: chargedEnergyWh / 1000,
         dischargedKWh: dischargedEnergyWh / 1000,
-        efficiency: chargedEnergyWh > 0
-            ? (dischargedEnergyWh / chargedEnergyWh) * 100
-            : 100
+        efficiency: chargedEnergyWh > 0 ? (dischargedEnergyWh / chargedEnergyWh) * 100 : 100
     };
+}
+
+function smoothData(data, windowSize = 5) {
+    if (!smoothingEnabled || windowSize < 2 || data.length < windowSize) return data;
+
+    const smoothed = JSON.parse(JSON.stringify(data));
+    const fields = ['voltage', 'current', 'power', 'soc'];
+
+    fields.forEach(field => {
+        for (let i = 0; i < data.length; i++) {
+            let sum = 0;
+            let count = 0;
+
+            for (let j = Math.max(0, i - Math.floor(windowSize / 2));
+                 j <= Math.min(data.length - 1, i + Math.floor(windowSize / 2));
+                 j++) {
+                if (data[j][field] !== undefined && !isNaN(data[j][field])) {
+                    sum += data[j][field];
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                smoothed[i][field] = sum / count;
+            }
+        }
+    });
+
+    return smoothed;
 }
 
 function displayEnergySummary() {
@@ -61,35 +88,47 @@ function displayEnergySummary() {
     `;
 }
 
-function smoothData(data, windowSize = 5) {
-    if (!smoothingEnabled || windowSize < 2 || data.length < windowSize) return data;
+function checkAlerts(data) {
+    const alerts = [];
 
-    const smoothed = JSON.parse(JSON.stringify(data));
-    const fields = ['voltage', 'current', 'power', 'soc'];
+    const lowVoltagePoints = data.filter(d => d.voltage < thresholds.voltageLow);
+    if (lowVoltagePoints.length > 0) {
+        const minVoltage = Math.min(...lowVoltagePoints.map(p => p.voltage));
+        alerts.push(`Low Voltage Alert: ${lowVoltagePoints.length} points below ${thresholds.voltageLow}V (min: ${minVoltage.toFixed(2)}V)`);
+    }
 
-    fields.forEach(field => {
-        for (let i = 0; i < data.length; i++) {
-            let sum = 0;
-            let count = 0;
+    const highVoltagePoints = data.filter(d => d.voltage > thresholds.voltageHigh);
+    if (highVoltagePoints.length > 0) {
+        const maxVoltage = Math.max(...highVoltagePoints.map(p => p.voltage));
+        alerts.push(`High Voltage Alert: ${highVoltagePoints.length} points above ${thresholds.voltageHigh}V (max: ${maxVoltage.toFixed(2)}V)`);
+    }
 
-            for (
-                let j = Math.max(0, i - Math.floor(windowSize / 2));
-                j <= Math.min(data.length - 1, i + Math.floor(windowSize / 2));
-                j++
-            ) {
-                if (data[j][field] !== undefined && !isNaN(data[j][field])) {
-                    sum += data[j][field];
-                    count++;
-                }
-            }
+    const highCurrentPoints = data.filter(d => Math.abs(d.current) > thresholds.currentMax);
+    if (highCurrentPoints.length > 0) {
+        const maxCurrent = Math.max(...highCurrentPoints.map(p => Math.abs(p.current)));
+        alerts.push(`High Current Alert: ${highCurrentPoints.length} points above ${thresholds.currentMax}A (max: ${maxCurrent.toFixed(2)}A)`);
+    }
 
-            if (count > 0) {
-                smoothed[i][field] = sum / count;
-            }
-        }
-    });
+    const lowSocPoints = data.filter(d => d.soc < thresholds.socLow);
+    if (lowSocPoints.length > 0) {
+        const minSoc = Math.min(...lowSocPoints.map(p => p.soc));
+        alerts.push(`Low SOC Alert: ${lowSocPoints.length} points below ${thresholds.socLow}% (min: ${minSoc.toFixed(1)}%)`);
+    }
 
-    return smoothed;
+    const alertsSection = document.getElementById('alertsSection');
+    if (!alertsSection) return;
+
+    if (alerts.length > 0) {
+        alertsSection.style.display = 'block';
+        alertsSection.innerHTML = `
+            <div class="alert-title">⚠️ System Alerts</div>
+            ${alerts.map(alert => `<div class="alert-item">• ${alert}</div>`).join('')}
+        `;
+        alertsSection.classList.add('pulse');
+    } else {
+        alertsSection.style.display = 'none';
+        alertsSection.classList.remove('pulse');
+    }
 }
 
 function displayStats(data) {
@@ -109,119 +148,31 @@ function displayStats(data) {
     const maxVoltage = Math.max(...voltages);
 
     const voltageStatus =
-        minVoltage < thresholds.voltageLow
-            ? 'danger'
-            : maxVoltage > thresholds.voltageHigh
-            ? 'warning'
-            : 'good';
+        minVoltage < thresholds.voltageLow ? 'danger' :
+        maxVoltage > thresholds.voltageHigh ? 'warning' : 'good';
 
     const stats = [
         { label: 'Total Records', value: data.length },
-        {
-            label: 'Duration',
-            value: (data[data.length - 1].relativeTime || 0).toFixed(1) + ' sec'
-        },
+        { label: 'Duration', value: (data[data.length - 1].relativeTime || 0).toFixed(1) + ' sec' },
         { label: 'Avg Voltage', value: avgVoltage.toFixed(2) + ' V', status: voltageStatus },
-        {
-            label: 'Voltage Range',
-            value: `${minVoltage.toFixed(2)} - ${maxVoltage.toFixed(2)} V`
-        },
+        { label: 'Voltage Range', value: `${minVoltage.toFixed(2)} - ${maxVoltage.toFixed(2)} V` },
         { label: 'Avg Current', value: avgCurrent.toFixed(2) + ' A' },
-        {
-            label: 'Max Current',
-            value:
-                currents.length > 0
-                    ? Math.max(...currents.map(Math.abs)).toFixed(2) + ' A'
-                    : 'N/A'
-        },
-        {
-            label: 'Avg Power',
-            value:
-                powers.length > 0
-                    ? (powers.reduce((a, b) => a + b, 0) / powers.length).toFixed(2) + ' W'
-                    : 'N/A'
-        },
-        {
-            label: 'Energy Used',
-            value: Math.abs(energyData.netKWh).toFixed(3) + ' kWh',
-            status: 'energy'
-        },
+        { label: 'Max Current', value: currents.length > 0 ? Math.max(...currents.map(Math.abs)).toFixed(2) + ' A' : 'N/A' },
+        { label: 'Avg Power', value: powers.length > 0 ? (powers.reduce((a, b) => a + b, 0) / powers.length).toFixed(2) + ' W' : 'N/A' },
+        { label: 'Energy Used', value: Math.abs(energyData.netKWh).toFixed(3) + ' kWh', status: 'energy' },
         {
             label: 'Data Rate',
-            value:
-                data.length > 1
-                    ? (data.length / (data[data.length - 1].relativeTime || 1)).toFixed(1) +
-                      ' Hz'
-                    : 'N/A'
+            value: data.length > 1 ? (data.length / (data[data.length - 1].relativeTime || 1)).toFixed(1) + ' Hz' : 'N/A'
         }
     ];
 
     const statsSection = document.getElementById('statsSection');
     if (!statsSection) return;
 
-    statsSection.innerHTML = stats
-        .map(
-            s => `
+    statsSection.innerHTML = stats.map(s => `
         <div class="stat-card">
             <div class="stat-label">${s.label}</div>
             <div class="stat-value ${s.status || ''}">${s.value}</div>
         </div>
-    `
-        )
-        .join('');
-}
-
-function checkAlerts(data) {
-    const alerts = [];
-
-    const lowVoltagePoints = data.filter(d => d.voltage < thresholds.voltageLow);
-    if (lowVoltagePoints.length > 0) {
-        const minVoltage = Math.min(...lowVoltagePoints.map(p => p.voltage));
-        alerts.push(
-            `Low Voltage Alert: ${lowVoltagePoints.length} points below ` +
-                `${thresholds.voltageLow}V (min: ${minVoltage.toFixed(2)}V)`
-        );
-    }
-
-    const highVoltagePoints = data.filter(d => d.voltage > thresholds.voltageHigh);
-    if (highVoltagePoints.length > 0) {
-        const maxVoltage = Math.max(...highVoltagePoints.map(p => p.voltage));
-        alerts.push(
-            `High Voltage Alert: ${highVoltagePoints.length} points above ` +
-                `${thresholds.voltageHigh}V (max: ${maxVoltage.toFixed(2)}V)`
-        );
-    }
-
-    const highCurrentPoints = data.filter(d => Math.abs(d.current) > thresholds.currentMax);
-    if (highCurrentPoints.length > 0) {
-        const maxCurrent = Math.max(...highCurrentPoints.map(p => Math.abs(p.current)));
-        alerts.push(
-            `High Current Alert: ${highCurrentPoints.length} points above ` +
-                `${thresholds.currentMax}A (max: ${maxCurrent.toFixed(2)}A)`
-        );
-    }
-
-    const lowSocPoints = data.filter(d => d.soc < thresholds.socLow);
-    if (lowSocPoints.length > 0) {
-        const minSoc = Math.min(...lowSocPoints.map(p => p.soc));
-        alerts.push(
-            `Low SOC Alert: ${lowSocPoints.length} points below ` +
-                `${thresholds.socLow}% (min: ${minSoc.toFixed(1)}%)`
-        );
-    }
-
-    const alertsSection = document.getElementById('alertsSection');
-    if (!alertsSection) return;
-
-    if (alerts.length > 0) {
-        alertsSection.style.display = 'block';
-        alertsSection.innerHTML = `
-            <div class="alert-title">⚠️ System Alerts</div>
-            ${alerts.map(alert => `<div class="alert-item">• ${alert}</div>`).join('')}
-        `;
-        alertsSection.classList.add('pulse');
-    } else {
-        alertsSection.style.display = 'none';
-        alertsSection.classList.remove('pulse');
-    }
+    `).join('');
 }

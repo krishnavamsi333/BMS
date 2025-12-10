@@ -1,78 +1,5 @@
 // js/utils.js
 
-// Configuration object (shared by all files)
-const CONFIG = {
-    MAX_FILE_SIZE: 50 * 1024 * 1024, // 50 MB
-    CHART: {
-        COLORS: {
-            voltage: '#3b82f6',
-            current: '#8b5cf6',
-            soc: '#10b981',
-            power: '#f59e0b',
-            energy: '#8b5cf6',
-            threshold: '#ef4444',
-            warning: '#f59e0b'
-        },
-        ANIMATION: {
-            duration: 1000,
-            easing: 'easeOutQuart'
-        }
-    },
-    THRESHOLDS: {
-        VOLTAGE: { min: 48.0, max: 60.0 },
-        CURRENT: { max: 50.0 },
-        SOC: { min: 20.0 }
-    }
-};
-
-// Global state (shared)
-let charts = {};
-let currentData = [];
-let timeMode = 'absolute';
-let smoothingEnabled = false;
-let energyData = {
-    totalKWh: 0,
-    netKWh: 0,
-    chargedKWh: 0,
-    dischargedKWh: 0,
-    efficiency: 0
-};
-let thresholds = {
-    voltageLow: CONFIG.THRESHOLDS.VOLTAGE.min,
-    voltageHigh: CONFIG.THRESHOLDS.VOLTAGE.max,
-    currentMax: CONFIG.THRESHOLDS.CURRENT.max,
-    socLow: CONFIG.THRESHOLDS.SOC.min
-};
-
-// ---------- Helpers ----------
-
-// js/utils.js
-
-function validateFile(file) {
-    if (!file) {
-        throw new Error('No file selected');
-    }
-
-    if (file.size > CONFIG.MAX_FILE_SIZE) {
-        throw new Error(
-            `File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB ` +
-            `(max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`
-        );
-    }
-
-    const validExtensions = ['.yaml', '.yml', '.txt'];
-    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-
-    if (!validExtensions.includes(fileExtension)) {
-        throw new Error(
-            `Invalid file type. Please select a YAML file (${validExtensions.join(', ')})`
-        );
-    }
-
-    return true;
-}
-
-
 function updateProgress(percent, text) {
     const fill = document.getElementById('progressFill');
     const label = document.getElementById('progressText');
@@ -80,6 +7,68 @@ function updateProgress(percent, text) {
 
     fill.style.width = percent + '%';
     label.textContent = text;
+}
+
+function animateElements() {
+    setTimeout(() => {
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.classList.add('animate');
+        });
+        document.querySelectorAll('.chart-container').forEach(container => {
+            container.classList.add('animate');
+        });
+    }, 100);
+}
+
+function showError(message) {
+    const loading = document.getElementById('loadingSection');
+    const progress = document.getElementById('progressSection');
+    const errorSection = document.getElementById('errorSection');
+
+    if (loading) loading.style.display = 'none';
+    if (progress) progress.style.display = 'none';
+    if (errorSection) {
+        errorSection.style.display = 'block';
+        errorSection.textContent = message;
+    }
+
+    console.error('BMS Visualizer Error:', message);
+}
+
+function cleanup() {
+    Object.values(charts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+    charts = {};
+    currentData = [];
+    energyData = {
+        totalKWh: 0,
+        netKWh: 0,
+        chargedKWh: 0,
+        dischargedKWh: 0,
+        efficiency: 0
+    };
+}
+
+function clearData() {
+    cleanup();
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const chartsSection = document.getElementById('chartsSection');
+    const statsSection = document.getElementById('statsSection');
+    const thresholdControls = document.getElementById('thresholdControls');
+    const alertsSection = document.getElementById('alertsSection');
+    const errorSection = document.getElementById('errorSection');
+    const energySummary = document.getElementById('energySummary');
+
+    if (fileInput) fileInput.value = '';
+    if (fileName) fileName.textContent = 'No file selected';
+    if (chartsSection) chartsSection.style.display = 'none';
+    if (statsSection) statsSection.style.display = 'none';
+    if (thresholdControls) thresholdControls.style.display = 'none';
+    if (alertsSection) alertsSection.style.display = 'none';
+    if (errorSection) errorSection.style.display = 'none';
+    if (energySummary) energySummary.style.display = 'none';
 }
 
 function downloadCSV(csv, filename) {
@@ -105,28 +94,48 @@ function downloadCSV(csv, filename) {
     }
 }
 
-function showError(message) {
-    const loading = document.getElementById('loadingSection');
-    const progress = document.getElementById('progressSection');
-    const errorBox = document.getElementById('errorSection');
-
-    if (loading) loading.style.display = 'none';
-    if (progress) progress.style.display = 'none';
-    if (errorBox) {
-        errorBox.style.display = 'block';
-        errorBox.textContent = message;
+function exportData() {
+    if (currentData.length === 0) {
+        alert('No data to export. Please load a file first.');
+        return;
     }
 
-    console.error('BMS Visualizer Error:', message);
+    try {
+        const includeFields = ['timestamp', 'relativeTime', 'voltage', 'current', 'soc', 'power', 'cumulativeEnergyKWh'];
+        const exportDataArray = currentData.map(entry => {
+            const row = {};
+            includeFields.forEach(field => {
+                row[field] = entry[field] !== undefined && entry[field] !== null ? entry[field] : '';
+            });
+            return row;
+        });
+
+        const csv = Papa.unparse(exportDataArray, {
+            header: true,
+            skipEmptyLines: true
+        });
+
+        downloadCSV(csv, `bms_data_${new Date().toISOString().slice(0, 10)}.csv`);
+
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            const originalText = exportBtn.textContent;
+            exportBtn.textContent = '✅ Export Successful!';
+            exportBtn.style.background = 'var(--success)';
+            exportBtn.style.color = 'white';
+            setTimeout(() => {
+                exportBtn.textContent = originalText;
+                exportBtn.style.background = '';
+                exportBtn.style.color = '';
+            }, 2000);
+        }
+
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+    }
 }
 
-function animateElements() {
-    setTimeout(() => {
-        document.querySelectorAll('.stat-card').forEach(card => {
-            card.classList.add('animate');
-        });
-        document.querySelectorAll('.chart-container').forEach(container => {
-            container.classList.add('animate');
-        });
-    }, 100);
+function exportFullData() {
+    exportData();
 }
