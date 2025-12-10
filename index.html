@@ -1,158 +1,186 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BMS Log Visualizer</title>
 
+    <meta
+      name="description"
+      content="Upload your BMS YAML logs and visualize voltage, current, SOC and energy consumption with interactive charts."
+    />
+
     <!-- Main styles -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
 
-    <!-- External libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>⚡ BMS Log Visualizer</h1>
-            <p class="subtitle">Upload your YAML battery logs to visualize voltage, current, SOC, and energy consumption</p>
+    <!-- Libraries -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"
+      defer
+    ></script>
+
+    <!-- Your app scripts (order matters) -->
+    <script src="js/config.js" defer></script>
+    <script src="js/utils.js" defer></script>
+    <script src="js/parser.js" defer></script>
+    <script src="js/calculations.js" defer></script>
+    <script src="js/charts.js" defer></script>
+    <script src="js/app.js" defer></script>
+  </head>
+
+  <body>
+    <a class="skip-to-content" href="#main">Skip to main content</a>
+
+    <div class="container" id="main" role="main">
+      <header class="header">
+        <h1>BMS Log Visualizer</h1>
+        <div class="subtitle">Upload ROS2-style YAML logs and explore battery metrics.</div>
+      </header>
+
+      <section class="upload-section" aria-labelledby="uploadLabel">
+        <div class="file-input-wrapper">
+          <input id="fileInput" type="file" accept=".yaml,.yml,.txt" />
+          <label for="fileInput" class="file-label" id="uploadLabel">Choose file</label>
+        </div>
+        <div id="fileName" class="file-name">No file selected</div>
+
+        <div class="controls" role="toolbar" aria-label="Visualization controls">
+          <button id="absoluteTimeBtn" class="control-btn active" aria-pressed="true">Absolute Time</button>
+          <button id="relativeTimeBtn" class="control-btn" aria-pressed="false">Relative Time</button>
+          <button id="smoothingBtn" class="control-btn" aria-pressed="false">Smoothing: Off</button>
+          <button id="clearBtn" class="control-btn">Clear</button>
+          <button id="exportBtn" class="control-btn">Export CSV</button>
+          <button id="exportFullBtn" class="control-btn">Export Full</button>
+        </div>
+      </section>
+
+      <section id="progressSection" class="progress-section" style="display:none;">
+        <div class="progress-bar" aria-hidden="true">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressText" class="progress-text">Idle</div>
+      </section>
+
+      <section id="loadingSection" class="loading" style="display:none;" aria-live="polite">
+        <div class="spinner" role="status" aria-hidden="true"></div>
+        <div>Processing file…</div>
+      </section>
+
+      <section id="errorSection" class="error" style="display:none;" role="alert" aria-live="assertive"></section>
+
+      <section id="alertsSection" class="alerts" style="display:none;" aria-live="polite"></section>
+
+      <section id="statsSection" class="stats" style="display:none;" aria-label="Summary statistics"></section>
+
+      <section id="energySummary" class="energy-summary" style="display:none;">
+        <div class="energy-title">Energy Summary</div>
+        <div id="energyGrid" class="energy-grid"></div>
+      </section>
+
+      <section id="thresholdControls" class="threshold-controls" style="display:none;" aria-label="Threshold controls">
+        <div class="threshold-row">
+          <label class="threshold-label" for="thVoltageLow">Voltage low (V)</label>
+          <input id="thVoltageLow" class="threshold-input" type="number" step="0.1" />
+
+          <label class="threshold-label" for="thVoltageHigh">Voltage high (V)</label>
+          <input id="thVoltageHigh" class="threshold-input" type="number" step="0.1" />
+        </div>
+        <div class="threshold-row">
+          <label class="threshold-label" for="thCurrentMax">Current max (A)</label>
+          <input id="thCurrentMax" class="threshold-input" type="number" step="0.1" />
+
+          <label class="threshold-label" for="thSocLow">SOC low (%)</label>
+          <input id="thSocLow" class="threshold-input" type="number" step="0.1" />
+
+          <button id="updateThresholdsBtn" class="control-btn">Update</button>
+        </div>
+      </section>
+
+      <section id="chartsSection" class="charts-section" style="display:none;" aria-label="Charts">
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">Voltage</div>
+            <div class="chart-controls">
+              <button class="chart-btn secondary" type="button" onclick="resetZoom('voltage')">Reset Zoom</button>
+              <button class="chart-btn" type="button" onclick="downloadChart('voltage')">Download</button>
+            </div>
+          </div>
+          <canvas id="voltageChart" aria-label="Voltage chart"></canvas>
         </div>
 
-        <div class="upload-section">
-            <div class="file-input-wrapper">
-                <input type="file" id="fileInput" accept=".yaml,.yml,.txt">
-                <label for="fileInput" class="file-label">📁 Choose YAML File</label>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">Current</div>
+            <div class="chart-controls">
+              <button class="chart-btn secondary" type="button" onclick="resetZoom('current')">Reset Zoom</button>
+              <button class="chart-btn" type="button" onclick="downloadChart('current')">Download</button>
             </div>
-            <div class="file-name" id="fileName">No file selected</div>
-            
-            <div class="controls">
-                <button class="control-btn active" id="absoluteTimeBtn">Absolute Time</button>
-                <button class="control-btn" id="relativeTimeBtn">Relative Time</button>
-                <button class="control-btn" id="smoothingBtn">Smoothing: Off</button>
-                <button class="control-btn" id="exportBtn">📥 Export CSV</button>
-                <button class="control-btn" id="clearBtn">🗑️ Clear Data</button>
-            </div>
+          </div>
+          <canvas id="currentChart" aria-label="Current chart"></canvas>
         </div>
 
-        <div id="progressSection" class="progress-section">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">State of Charge (SOC)</div>
+            <div class="chart-controls">
+              <button class="chart-btn secondary" type="button" onclick="resetZoom('soc')">Reset Zoom</button>
+              <button class="chart-btn" type="button" onclick="downloadChart('soc')">Download</button>
             </div>
-            <div class="progress-text" id="progressText">Processing...</div>
+          </div>
+          <canvas id="socChart" aria-label="SOC chart"></canvas>
         </div>
 
-        <div id="thresholdControls" class="threshold-controls" style="display:none;">
-            <h3>🚨 Alert Thresholds</h3>
-            <div class="threshold-row">
-                <span class="threshold-label">Voltage Low (V):</span>
-                <input type="number" id="thVoltageLow" class="threshold-input" value="48.0" step="0.1">
-                <span class="threshold-label">Voltage High (V):</span>
-                <input type="number" id="thVoltageHigh" class="threshold-input" value="60.0" step="0.1">
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">Power</div>
+            <div class="chart-controls">
+              <button class="chart-btn secondary" type="button" onclick="resetZoom('power')">Reset Zoom</button>
+              <button class="chart-btn" type="button" onclick="downloadChart('power')">Download</button>
             </div>
-            <div class="threshold-row">
-                <span class="threshold-label">Current Max (A):</span>
-                <input type="number" id="thCurrentMax" class="threshold-input" value="50.0" step="0.1">
-                <span class="threshold-label">SOC Low (%):</span>
-                <input type="number" id="thSocLow" class="threshold-input" value="20.0" step="1">
-            </div>
-            <button class="chart-btn" id="updateThresholdsBtn">Update Alerts</button>
+          </div>
+          <canvas id="powerChart" aria-label="Power chart"></canvas>
         </div>
 
-        <div id="energySummary" class="energy-summary" style="display:none;">
-            <div class="energy-title">🔋 Energy Consumption Summary</div>
-            <div class="energy-grid" id="energyGrid"></div>
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">Cumulative Energy</div>
+            <div class="chart-controls">
+              <button class="chart-btn secondary" type="button" onclick="resetZoom('energy')">Reset Zoom</button>
+              <button class="chart-btn" type="button" onclick="downloadChart('energy')">Download</button>
+            </div>
+          </div>
+          <canvas id="energyChart" aria-label="Energy chart"></canvas>
         </div>
+      </section>
 
-        <div id="alertsSection" class="alerts" style="display:none;"></div>
-        <div id="statsSection" style="display:none;" class="stats"></div>
-
-        <div id="loadingSection" style="display:none;" class="loading">
-            <div class="spinner"></div>
-            <div>Processing your BMS logs...</div>
-        </div>
-
-        <div id="errorSection" style="display:none;" class="error"></div>
-        
-        <div id="chartsSection" class="charts-section" style="display:none;">
-            <div class="zoom-info">
-                🔍 <strong>Zoom Controls:</strong> Scroll to zoom | Drag to pan | Use reset buttons to restore view
-            </div>
-            
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title">Voltage over Time (V)</div>
-                    <div class="chart-controls">
-                        <button class="chart-btn secondary" onclick="downloadChart('voltage')">📷 Screenshot</button>
-                        <button class="chart-btn" onclick="resetZoom('voltage')">🔄 Reset Zoom</button>
-                    </div>
-                </div>
-                <canvas id="voltageChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title">Current over Time (A)</div>
-                    <div class="chart-controls">
-                        <button class="chart-btn secondary" onclick="downloadChart('current')">📷 Screenshot</button>
-                        <button class="chart-btn" onclick="resetZoom('current')">🔄 Reset Zoom</button>
-                    </div>
-                </div>
-                <canvas id="currentChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title">State of Charge over Time (%)</div>
-                    <div class="chart-controls">
-                        <button class="chart-btn secondary" onclick="downloadChart('soc')">📷 Screenshot</button>
-                        <button class="chart-btn" onclick="resetZoom('soc')">🔄 Reset Zoom</button>
-                    </div>
-                </div>
-                <canvas id="socChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title">Power over Time (W)</div>
-                    <div class="chart-controls">
-                        <button class="chart-btn secondary" onclick="downloadChart('power')">📷 Screenshot</button>
-                        <button class="chart-btn" onclick="resetZoom('power')">🔄 Reset Zoom</button>
-                    </div>
-                </div>
-                <canvas id="powerChart"></canvas>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title">Cumulative Energy Consumption (kWh)</div>
-                    <div class="chart-controls">
-                        <button class="chart-btn secondary" onclick="downloadChart('energy')">📷 Screenshot</button>
-                        <button class="chart-btn" onclick="resetZoom('energy')">🔄 Reset Zoom</button>
-                    </div>
-                </div>
-                <canvas id="energyChart"></canvas>
-            </div>
-        </div>
-
-        <div class="export-section">
-            <button class="chart-btn" id="exportFullBtn">📊 Export Full Dataset as CSV</button>
-            <div class="tooltip" style="margin-left: 10px;">
-                <button class="chart-btn secondary">ℹ️</button>
-                <span class="tooltiptext">Exports all parsed data including timestamps, voltage, current, SOC, power, and energy values</span>
-            </div>
-        </div>
+      <footer class="export-section">
+        <div>Built with ❤️ — <a href="https://github.com/krishnavamsi333/BMS" target="_blank" rel="noopener">Project on GitHub</a></div>
+      </footer>
     </div>
 
-    <!-- Your scripts: **order matters** -->
-    <script src="js/config.js"></script>
-    <script src="js/parser.js"></script>
-    <script src="js/calculations.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/app.js"></script>
-</body>
+    <script>
+      // Small enhancement: update file name when user picks a file via keyboard or drag
+      document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('fileInput');
+        const label = document.querySelector('.file-label');
+        if (input && label) {
+          label.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              input.click();
+            }
+          });
+        }
+      });
+    </script>
+  </body>
 </html>

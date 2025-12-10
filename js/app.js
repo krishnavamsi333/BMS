@@ -136,14 +136,17 @@ function setTimeMode(mode) {
         .querySelectorAll('.control-btn')
         .forEach(btn => btn.classList.remove('active'));
 
+    const absBtn = document.getElementById('absoluteTimeBtn');
+    const relBtn = document.getElementById('relativeTimeBtn');
+
     if (mode === 'absolute') {
-        document
-            .getElementById('absoluteTimeBtn')
-            .classList.add('active');
+        absBtn.classList.add('active');
+        absBtn.setAttribute('aria-pressed', 'true');
+        if (relBtn) relBtn.setAttribute('aria-pressed', 'false');
     } else {
-        document
-            .getElementById('relativeTimeBtn')
-            .classList.add('active');
+        relBtn.classList.add('active');
+        relBtn.setAttribute('aria-pressed', 'true');
+        if (absBtn) absBtn.setAttribute('aria-pressed', 'false');
     }
 
     if (currentData.length > 0) {
@@ -153,8 +156,9 @@ function setTimeMode(mode) {
 
 function toggleSmoothing() {
     smoothingEnabled = !smoothingEnabled;
-    document.getElementById('smoothingBtn').textContent =
-        'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+    const sb = document.getElementById('smoothingBtn');
+    sb.textContent = 'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+    sb.setAttribute('aria-pressed', smoothingEnabled ? 'true' : 'false');
     if (currentData.length > 0) {
         createCharts(currentData);
     }
