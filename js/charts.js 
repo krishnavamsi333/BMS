@@ -1,42 +1,16 @@
-// charts.js - Chart.js configurations
-
 function createCharts(data) {
-    // Destroy old charts
-    Object.values(charts).forEach(chart => chart.destroy());
-    charts = {};
+    if (!window.charts) window.charts = {};
+    Object.values(window.charts).forEach(chart => chart.destroy());
+    window.charts = {};
 
-    const timeValues = timeMode === 'relative' ? 
+    const timeValues = window.timeMode === 'relative' ? 
         data.map(d => d.relativeTime || 0) : 
         data.map(d => d.timestamp || d.sec || 0);
 
-    const timeLabel = timeMode === 'relative' ? 
+    const timeLabel = window.timeMode === 'relative' ? 
         'Time (seconds since start)' : 'ROS2 Timestamp (seconds)';
 
-    const commonOptions = getCommonChartOptions(timeLabel);
-
-    if (data.some(d => d.voltage !== undefined)) {
-        createVoltageChart(timeValues, data, commonOptions);
-    }
-
-    if (data.some(d => d.current !== undefined)) {
-        createCurrentChart(timeValues, data, commonOptions);
-    }
-
-    if (data.some(d => d.soc !== undefined)) {
-        createSOCChart(timeValues, data, commonOptions);
-    }
-
-    if (data.some(d => d.power !== undefined)) {
-        createPowerChart(timeValues, data, commonOptions);
-    }
-
-    if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
-        createEnergyChart(timeValues, data, commonOptions);
-    }
-}
-
-function getCommonChartOptions(timeLabel) {
-    return {
+    const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
         interaction: {
@@ -46,7 +20,7 @@ function getCommonChartOptions(timeLabel) {
         },
         elements: {
             line: {
-                tension: smoothingEnabled ? 0.4 : 0
+                tension: window.smoothingEnabled ? 0.4 : 0
             },
             point: {
                 radius: 0,
@@ -54,25 +28,18 @@ function getCommonChartOptions(timeLabel) {
             }
         },
         animation: {
-            duration: CHART_CONFIG.ANIMATION.duration,
-            easing: CHART_CONFIG.ANIMATION.easing
+            duration: 1000,
+            easing: 'easeOutQuart'
         },
         plugins: {
-            legend: { 
-                display: true,
-                position: 'top',
-                labels: {
-                    usePointStyle: true,
-                    boxWidth: 10
-                }
-            },
+            legend: { display: false },
             tooltip: { 
                 mode: 'index', 
                 intersect: false,
                 callbacks: {
                     title: function(context) {
                         const value = context[0].parsed.x;
-                        return timeMode === 'relative' ? 
+                        return window.timeMode === 'relative' ? 
                             `Time: ${value.toFixed(1)}s` : 
                             `Timestamp: ${value}`;
                     }
@@ -81,7 +48,8 @@ function getCommonChartOptions(timeLabel) {
             zoom: {
                 pan: {
                     enabled: true,
-                    mode: 'x'
+                    mode: 'x',
+                    modifierKey: null
                 },
                 zoom: {
                     wheel: {
@@ -118,205 +86,185 @@ function getCommonChartOptions(timeLabel) {
             }
         }
     };
-}
 
-function createVoltageChart(timeValues, data, commonOptions) {
-    charts.voltage = new Chart(document.getElementById('voltageChart'), {
-        type: 'line',
-        data: {
-            labels: timeValues,
-            datasets: [
-                {
-                    label: 'Voltage (V)',
-                    data: data.map(d => d.voltage),
-                    borderColor: CHART_CONFIG.COLORS.voltage,
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    const thresholds = window.thresholds;
+    const CONFIG = window.CONFIG;
+
+    if (data.some(d => d.voltage !== undefined)) {
+        window.charts.voltage = new Chart(document.getElementById('voltageChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [
+                    {
+                        label: 'Voltage (V)',
+                        data: data.map(d => d.voltage),
+                        borderColor: CONFIG.CHART.COLORS.voltage,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'Low Threshold',
+                        data: data.map(() => thresholds.voltageLow),
+                        borderColor: CONFIG.CHART.COLORS.threshold,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    },
+                    {
+                        label: 'High Threshold',
+                        data: data.map(() => thresholds.voltageHigh),
+                        borderColor: CONFIG.CHART.COLORS.warning,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: commonOptions
+        });
+    }
+
+    if (data.some(d => d.current !== undefined)) {
+        window.charts.current = new Chart(document.getElementById('currentChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [
+                    {
+                        label: 'Current (A)',
+                        data: data.map(d => d.current),
+                        borderColor: CONFIG.CHART.COLORS.current,
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'Max Threshold',
+                        data: data.map(() => thresholds.currentMax),
+                        borderColor: CONFIG.CHART.COLORS.threshold,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    },
+                    {
+                        label: 'Min Threshold',
+                        data: data.map(() => -thresholds.currentMax),
+                        borderColor: CONFIG.CHART.COLORS.threshold,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: commonOptions
+        });
+    }
+
+    if (data.some(d => d.soc !== undefined)) {
+        window.charts.soc = new Chart(document.getElementById('socChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [
+                    {
+                        label: 'SOC (%)',
+                        data: data.map(d => d.soc),
+                        borderColor: CONFIG.CHART.COLORS.soc,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'Low SOC Threshold',
+                        data: data.map(() => thresholds.socLow),
+                        borderColor: CONFIG.CHART.COLORS.threshold,
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+
+    if (data.some(d => d.power !== undefined)) {
+        window.charts.power = new Chart(document.getElementById('powerChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Power (W)',
+                    data: data.map(d => d.power),
+                    borderColor: CONFIG.CHART.COLORS.power,
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
                     borderWidth: 2,
                     fill: true
-                },
-                {
-                    label: 'Low Threshold',
-                    data: data.map(() => thresholds.voltageLow),
-                    borderColor: CHART_CONFIG.COLORS.threshold,
-                    borderWidth: 1,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                },
-                {
-                    label: 'High Threshold',
-                    data: data.map(() => thresholds.voltageHigh),
-                    borderColor: CHART_CONFIG.COLORS.warning,
-                    borderWidth: 1,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: commonOptions
-    });
-}
+                }]
+            },
+            options: commonOptions
+        });
+    }
 
-function createCurrentChart(timeValues, data, commonOptions) {
-    charts.current = new Chart(document.getElementById('currentChart'), {
-        type: 'line',
-        data: {
-            labels: timeValues,
-            datasets: [
-                {
-                    label: 'Current (A)',
-                    data: data.map(d => d.current),
-                    borderColor: CHART_CONFIG.COLORS.current,
+    if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
+        window.charts.energy = new Chart(document.getElementById('energyChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Cumulative Energy (kWh)',
+                    data: data.map(d => d.cumulativeEnergyKWh || 0),
+                    borderColor: CONFIG.CHART.COLORS.energy,
                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
                     borderWidth: 2,
                     fill: true
-                },
-                {
-                    label: 'Max Threshold',
-                    data: data.map(() => thresholds.currentMax),
-                    borderColor: CHART_CONFIG.COLORS.threshold,
-                    borderWidth: 1,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                },
-                {
-                    label: 'Min Threshold',
-                    data: data.map(() => -thresholds.currentMax),
-                    borderColor: CHART_CONFIG.COLORS.threshold,
-                    borderWidth: 1,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: commonOptions
-    });
-}
-
-function createSOCChart(timeValues, data, commonOptions) {
-    charts.soc = new Chart(document.getElementById('socChart'), {
-        type: 'line',
-        data: {
-            labels: timeValues,
-            datasets: [
-                {
-                    label: 'SOC (%)',
-                    data: data.map(d => d.soc),
-                    borderColor: CHART_CONFIG.COLORS.soc,
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    borderWidth: 2,
-                    fill: true
-                },
-                {
-                    label: 'Low SOC Threshold',
-                    data: data.map(() => thresholds.socLow),
-                    borderColor: CHART_CONFIG.COLORS.threshold,
-                    borderWidth: 1,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    min: 0,
-                    max: 100,
-                    title: {
-                        display: true,
-                        text: 'SOC (%)'
+                }]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        title: {
+                            display: true,
+                            text: 'Energy (kWh)'
+                        }
                     }
                 }
             }
-        }
-    });
-}
-
-function createPowerChart(timeValues, data, commonOptions) {
-    charts.power = new Chart(document.getElementById('powerChart'), {
-        type: 'line',
-        data: {
-            labels: timeValues,
-            datasets: [{
-                label: 'Power (W)',
-                data: data.map(d => d.power),
-                borderColor: CHART_CONFIG.COLORS.power,
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                borderWidth: 2,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: {
-                        display: true,
-                        text: 'Power (W)'
-                    }
-                }
-            }
-        }
-    });
-}
-
-function createEnergyChart(timeValues, data, commonOptions) {
-    charts.energy = new Chart(document.getElementById('energyChart'), {
-        type: 'line',
-        data: {
-            labels: timeValues,
-            datasets: [{
-                label: 'Cumulative Energy (kWh)',
-                data: data.map(d => d.cumulativeEnergyKWh || 0),
-                borderColor: CHART_CONFIG.COLORS.energy,
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                borderWidth: 2,
-                fill: true
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                ...commonOptions.scales,
-                y: {
-                    ...commonOptions.scales.y,
-                    title: {
-                        display: true,
-                        text: 'Energy (kWh)'
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Chart utility functions - Make them global
-window.resetZoom = function(chartName) {
-    if (charts[chartName]) {
-        charts[chartName].resetZoom();
+        });
     }
 }
 
-window.resetAllZoom = function() {
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.resetZoom();
-    });
+function resetZoom(chartName) {
+    if (window.charts && window.charts[chartName]) {
+        window.charts[chartName].resetZoom();
+    }
 }
 
-window.downloadChart = function(chartName) {
-    if (charts[chartName]) {
+function downloadChart(chartName) {
+    if (window.charts && window.charts[chartName]) {
         const link = document.createElement('a');
         link.download = `bms_${chartName}_chart.png`;
-        link.href = charts[chartName].toBase64Image();
+        link.href = window.charts[chartName].toBase64Image();
         link.click();
     }
 }

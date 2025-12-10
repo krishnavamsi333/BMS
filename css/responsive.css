@@ -1,13 +1,6 @@
-/* responsive.css - Mobile, tablet, print styles */
-
-/* Mobile devices (portrait phones, less than 768px) */
-@media (max-width: 767.98px) {
-    body {
-        padding: 10px;
-    }
-    
+@media (max-width: 768px) {
     .container {
-        margin: 5px;
+        margin: 10px;
         border-radius: 8px;
     }
     
@@ -19,15 +12,7 @@
         font-size: 1.8em;
     }
     
-    .subtitle {
-        font-size: 0.9em;
-    }
-    
-    .upload-section {
-        padding: 20px 15px;
-    }
-    
-    .charts-section {
+    .upload-section, .charts-section {
         padding: 20px 15px;
     }
     
@@ -44,25 +29,11 @@
     
     .energy-grid {
         grid-template-columns: 1fr;
-        gap: 10px;
-    }
-    
-    .energy-item {
-        padding: 12px;
-    }
-    
-    .energy-value {
-        font-size: 1.3em;
     }
     
     .threshold-row {
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .threshold-label {
-        min-width: auto;
     }
     
     .chart-header {
@@ -73,168 +44,15 @@
     
     .chart-controls {
         align-self: flex-end;
-        width: 100%;
-        justify-content: flex-end;
     }
     
     .controls {
         flex-direction: column;
         align-items: center;
-        gap: 10px;
     }
     
     .control-btn {
         width: 100%;
         max-width: 250px;
-    }
-    
-    .chart-container {
-        padding: 15px;
-    }
-    
-    .chart-title {
-        font-size: 1.1em;
-    }
-    
-    canvas {
-        max-height: 300px;
-    }
-    
-    .zoom-info {
-        padding: 10px;
-        font-size: 0.9em;
-        margin-bottom: 15px;
-    }
-    
-    .chart-global-controls {
-        justify-content: center;
-    }
-    
-    .alerts {
-        margin: 15px;
-        padding: 12px;
-    }
-    
-    .error {
-        margin: 15px;
-        padding: 15px;
-    }
-}
-
-/* Tablet devices (landscape phones, 768px and up) */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .container {
-        max-width: 95%;
-    }
-    
-    .stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
-        padding: 25px 30px;
-    }
-    
-    .energy-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .chart-header {
-        flex-wrap: wrap;
-    }
-    
-    canvas {
-        max-height: 350px;
-    }
-}
-
-/* Large devices (desktops, 1024px and up) */
-@media (min-width: 1024px) {
-    .stats {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    }
-    
-    .energy-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-/* Print styles */
-@media print {
-    body {
-        background: white;
-        padding: 0;
-    }
-    
-    .container {
-        box-shadow: none;
-        max-width: 100%;
-    }
-    
-    .header {
-        background: white !important;
-        color: black !important;
-        padding: 20px;
-    }
-    
-    .header::before {
-        display: none;
-    }
-    
-    .controls,
-    .chart-controls,
-    .file-input-wrapper,
-    .export-section,
-    .tooltip,
-    .threshold-controls,
-    .zoom-info,
-    .chart-global-controls,
-    .progress-section,
-    .loading,
-    .alerts,
-    .error {
-        display: none !important;
-    }
-    
-    .chart-container {
-        break-inside: avoid;
-        page-break-inside: avoid;
-        box-shadow: none;
-        border: 1px solid #ddd;
-    }
-    
-    canvas {
-        max-height: 500px !important;
-    }
-    
-    @page {
-        margin: 0.5in;
-    }
-}
-
-/* High contrast mode */
-@media (prefers-contrast: high) {
-    :root {
-        --bg-primary: #000000;
-        --bg-secondary: #1a1a1a;
-        --bg-card: #000000;
-        --accent-primary: #00ffff;
-        --accent-secondary: #00ff00;
-        --text-primary: #ffffff;
-        --text-secondary: #cccccc;
-        --border: #444444;
-    }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-    
-    .file-label::before {
-        display: none;
     }
 }

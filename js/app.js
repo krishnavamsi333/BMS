@@ -1,13 +1,50 @@
-// app.js - Main app logic & initialization
+// Global configuration & state
+window.CONFIG = {
+    CHART: {
+        COLORS: {
+            voltage: '#3b82f6',
+            current: '#8b5cf6',
+            soc: '#10b981',
+            power: '#f59e0b',
+            energy: '#8b5cf6',
+            threshold: '#ef4444',
+            warning: '#f59e0b'
+        },
+        ANIMATION: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+        }
+    },
+    THRESHOLDS: {
+        VOLTAGE: { min: 48.0, max: 60.0 },
+        CURRENT: { max: 50.0 },
+        SOC: { min: 20.0 }
+    }
+};
 
-// Initialize the application
+window.charts = {};
+window.currentData = [];
+window.timeMode = 'absolute';
+window.smoothingEnabled = false;
+window.energyData = {
+    totalKWh: 0,
+    netKWh: 0,
+    chargedKWh: 0,
+    dischargedKWh: 0,
+    efficiency: 0
+};
+window.thresholds = {
+    voltageLow: CONFIG.THRESHOLDS.VOLTAGE.min,
+    voltageHigh: CONFIG.THRESHOLDS.VOLTAGE.max,
+    currentMax: CONFIG.THRESHOLDS.CURRENT.max,
+    socLow: CONFIG.THRESHOLDS.SOC.min
+};
+
 function init() {
     bindEvents();
     setupDefaultThresholds();
-    hideAllSections();
 }
 
-// Bind event listeners
 function bindEvents() {
     document.getElementById('fileInput').addEventListener('change', handleFileSelect);
     document.getElementById('absoluteTimeBtn').addEventListener('click', () => setTimeMode('absolute'));
@@ -18,179 +55,192 @@ function bindEvents() {
     document.getElementById('updateThresholdsBtn').addEventListener('click', updateThresholds);
     document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
     
-    // Global error handling
     window.addEventListener('error', function(e) {
-        console.error('Global error:', e.error);
         showError(`Unexpected error: ${e.error?.message || 'Unknown error'}`);
     });
 }
 
-function hideAllSections() {
-    document.getElementById('chartsSection').style.display = 'none';
-    document.getElementById('statsSection').style.display = 'none';
-    document.getElementById('thresholdControls').style.display = 'none';
-    document.getElementById('alertsSection').style.display = 'none';
-    document.getElementById('errorSection').style.display = 'none';
-    document.getElementById('energySummary').style.display = 'none';
-    document.getElementById('loadingSection').style.display = 'none';
-    document.getElementById('progressSection').style.display = 'none';
-}
-
 function setupDefaultThresholds() {
-    thresholds.voltageLow = CONFIG.THRESHOLDS.VOLTAGE.min;
-    thresholds.voltageHigh = CONFIG.THRESHOLDS.VOLTAGE.max;
-    thresholds.currentMax = CONFIG.THRESHOLDS.CURRENT.max;
-    thresholds.socLow = CONFIG.THRESHOLDS.SOC.min;
-    
-    document.getElementById('thVoltageLow').value = thresholds.voltageLow;
-    document.getElementById('thVoltageHigh').value = thresholds.voltageHigh;
-    document.getElementById('thCurrentMax').value = thresholds.currentMax;
-    document.getElementById('thSocLow').value = thresholds.socLow;
+    document.getElementById('thVoltageLow').value = window.thresholds.voltageLow;
+    document.getElementById('thVoltageHigh').value = window.thresholds.voltageHigh;
+    document.getElementById('thCurrentMax').value = window.thresholds.currentMax;
+    document.getElementById('thSocLow').value = window.thresholds.socLow;
 }
 
-async function handleFileSelect(e) {
+function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file) {
         document.getElementById('fileName').textContent = file.name;
-        await processFile(file);
+        processFile(file);
     }
 }
 
-async function processFile(file) {
+function processFile(file) {
     try {
-        console.log('Processing file:', file.name);
         validateFile(file);
         cleanup();
         
-        showLoading();
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('chartsSection').style.display = 'none';
+        document.getElementById('statsSection').style.display = 'none';
+        document.getElementById('errorSection').style.display = 'none';
+        document.getElementById('alertsSection').style.display = 'none';
+        document.getElementById('thresholdControls').style.display = 'none';
+        document.getElementById('energySummary').style.display = 'none';
         
-        console.log('Reading file...');
-        const text = await readFileAsText(file);
-        console.log('File read, parsing YAML...');
+        const reader = new FileReader();
+        let processingTimeout;
         
-        const data = parseYAML(text);
-        console.log('Parsed data points:', data.length);
+        processingTimeout = setTimeout(() => {
+            showError('File processing timeout. File might be too large or corrupted.');
+            reader.abort();
+        }, 30000);
         
-        if (data.length === 0) {
-            throw new Error('No valid data found in file. Please check the file format.');
-        }
+        reader.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                updateProgress(percent, `Loading: ${percent}%`);
+            }
+        };
+        
+        reader.onload = function(e) {
+            clearTimeout(processingTimeout);
+            
+            try {
+                updateProgress(50, 'Parsing YAML data...');
+                const text = e.target.result;
+                const data = parseYAML(text);
+                
+                if (data.length === 0) {
+                    throw new Error('No valid data found in file. Please check the file format.');
+                }
 
-        console.log('Processing data...');
-        currentData = validateAndFilterData(data);
-        calculateEnergyConsumption(currentData);
-        const smoothedData = smoothData(currentData);
+                updateProgress(75, 'Processing data...');
+                window.currentData = validateAndFilterData(data);
+                calculateEnergyConsumption(window.currentData);
+                const smoothedData = smoothData(window.currentData);
+                
+                updateProgress(90, 'Creating visualizations...');
+                displayStats(smoothedData);
+                displayEnergySummary();
+                checkAlerts(smoothedData);
+                createCharts(smoothedData);
+                
+                updateProgress(100, 'Complete!');
+                
+                setTimeout(() => {
+                    document.getElementById('loadingSection').style.display = 'none';
+                    document.getElementById('progressSection').style.display = 'none';
+                    document.getElementById('chartsSection').style.display = 'block';
+                    document.getElementById('statsSection').style.display = 'grid';
+                    document.getElementById('thresholdControls').style.display = 'block';
+                    document.getElementById('energySummary').style.display = 'block';
+                    animateElements();
+                }, 500);
+            } catch (error) {
+                clearTimeout(processingTimeout);
+                showError('Error processing file: ' + error.message);
+            }
+        };
         
-        console.log('Creating visualizations...');
-        displayStats(smoothedData);
-        displayEnergySummary();
-        checkAlerts(smoothedData);
-        createCharts(smoothedData);
+        reader.onerror = function() {
+            clearTimeout(processingTimeout);
+            showError('Error reading file. The file may be corrupted or inaccessible.');
+        };
         
-        showVisualizations();
-        console.log('Visualization complete!');
+        reader.readAsText(file);
     } catch (error) {
-        console.error('Error in processFile:', error);
-        showError('Error processing file: ' + error.message);
-    } finally {
-        hideLoading();
+        showError(error.message);
     }
-}
-
-function showLoading() {
-    document.getElementById('loadingSection').style.display = 'block';
-    document.getElementById('progressSection').style.display = 'block';
-    hideAllSections();
-}
-
-function hideLoading() {
-    document.getElementById('loadingSection').style.display = 'none';
-    document.getElementById('progressSection').style.display = 'none';
-}
-
-function showVisualizations() {
-    document.getElementById('chartsSection').style.display = 'block';
-    document.getElementById('statsSection').style.display = 'grid';
-    document.getElementById('thresholdControls').style.display = 'block';
-    document.getElementById('energySummary').style.display = 'block';
-    animateElements();
-}
-
-function animateElements() {
-    setTimeout(() => {
-        document.querySelectorAll('.stat-card').forEach(card => {
-            card.classList.add('animate');
-        });
-        document.querySelectorAll('.chart-container').forEach(container => {
-            container.classList.add('animate');
-        });
-    }, 100);
-}
-
-function setTimeMode(mode) {
-    timeMode = mode;
-    document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
-    
-    if (mode === 'absolute') {
-        document.getElementById('absoluteTimeBtn').classList.add('active');
-    } else {
-        document.getElementById('relativeTimeBtn').classList.add('active');
-    }
-    
-    if (currentData.length > 0) {
-        createCharts(currentData);
-    }
-}
-
-function toggleSmoothing() {
-    smoothingEnabled = !smoothingEnabled;
-    document.getElementById('smoothingBtn').textContent = 'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
-    if (currentData.length > 0) {
-        createCharts(currentData);
-    }
-}
-
-function updateThresholds() {
-    thresholds.voltageLow = parseFloat(document.getElementById('thVoltageLow').value);
-    thresholds.voltageHigh = parseFloat(document.getElementById('thVoltageHigh').value);
-    thresholds.currentMax = parseFloat(document.getElementById('thCurrentMax').value);
-    thresholds.socLow = parseFloat(document.getElementById('thSocLow').value);
-    
-    if (currentData.length > 0) {
-        checkAlerts(currentData);
-        createCharts(currentData);
-    }
-}
-
-function cleanup() {
-    Object.values(charts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-    charts = {};
-    currentData = [];
-    energyData = {
-        totalKWh: 0,
-        netKWh: 0,
-        chargedKWh: 0,
-        dischargedKWh: 0,
-        efficiency: 0
-    };
 }
 
 function clearData() {
     cleanup();
     document.getElementById('fileInput').value = '';
     document.getElementById('fileName').textContent = 'No file selected';
-    hideAllSections();
+    document.getElementById('chartsSection').style.display = 'none';
+    document.getElementById('statsSection').style.display = 'none';
+    document.getElementById('thresholdControls').style.display = 'none';
+    document.getElementById('alertsSection').style.display = 'none';
+    document.getElementById('errorSection').style.display = 'none';
+    document.getElementById('energySummary').style.display = 'none';
 }
 
-// Make functions available globally
-window.showError = showError;
-window.setTimeMode = setTimeMode;
-window.toggleSmoothing = toggleSmoothing;
-window.updateThresholds = updateThresholds;
-window.clearData = clearData;
-window.exportData = exportData;
-window.exportFullData = exportFullData;
+function setTimeMode(mode) {
+    window.timeMode = mode;
+    document.getElementById('absoluteTimeBtn').classList.toggle('active', mode === 'absolute');
+    document.getElementById('relativeTimeBtn').classList.toggle('active', mode === 'relative');
+    
+    if (window.currentData.length > 0) {
+        createCharts(window.currentData);
+    }
+}
 
-// Initialize when DOM is loaded
+function toggleSmoothing() {
+    window.smoothingEnabled = !window.smoothingEnabled;
+    document.getElementById('smoothingBtn').textContent = 'Smoothing: ' + (window.smoothingEnabled ? 'On' : 'Off');
+    if (window.currentData.length > 0) {
+        createCharts(window.currentData);
+    }
+}
+
+function updateThresholds() {
+    window.thresholds.voltageLow = parseFloat(document.getElementById('thVoltageLow').value);
+    window.thresholds.voltageHigh = parseFloat(document.getElementById('thVoltageHigh').value);
+    window.thresholds.currentMax = parseFloat(document.getElementById('thCurrentMax').value);
+    window.thresholds.socLow = parseFloat(document.getElementById('thSocLow').value);
+    
+    if (window.currentData.length > 0) {
+        checkAlerts(window.currentData);
+        createCharts(window.currentData);
+    }
+}
+
+function exportData() {
+    if (!window.currentData || window.currentData.length === 0) {
+        alert('No data to export. Please load a file first.');
+        return;
+    }
+    
+    try {
+        const includeFields = ['timestamp', 'relativeTime', 'voltage', 'current', 'soc', 'power', 'cumulativeEnergyKWh'];
+        const exportDataArray = window.currentData.map(entry => {
+            const row = {};
+            includeFields.forEach(field => {
+                row[field] = entry[field] !== undefined && entry[field] !== null ? entry[field] : '';
+            });
+            return row;
+        });
+        
+        const csv = Papa.unparse(exportDataArray, {
+            header: true,
+            skipEmptyLines: true
+        });
+        
+        downloadCSV(csv, `bms_data_${new Date().toISOString().slice(0,10)}.csv`);
+        
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            const originalText = exportBtn.textContent;
+            exportBtn.textContent = '✅ Export Successful!';
+            exportBtn.style.background = 'var(--success)';
+            exportBtn.style.color = 'white';
+            setTimeout(() => {
+                exportBtn.textContent = originalText;
+                exportBtn.style.background = '';
+                exportBtn.style.color = '';
+            }, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+    }
+}
+
+function exportFullData() {
+    exportData();
+}
+
 document.addEventListener('DOMContentLoaded', init);

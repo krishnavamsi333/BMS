@@ -4,19 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BMS Log Visualizer</title>
-    
-    <!-- External Libraries -->
+
+    <!-- External libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
-    <!-- CSS Files -->
+
+    <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/responsive.css">
-    
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
 </head>
 <body>
     <div class="container">
@@ -48,7 +45,7 @@
             <div class="progress-text" id="progressText">Processing...</div>
         </div>
 
-        <div id="thresholdControls" class="threshold-controls">
+        <div id="thresholdControls" class="threshold-controls" style="display:none;">
             <h3>🚨 Alert Thresholds</h3>
             <div class="threshold-row">
                 <span class="threshold-label">Voltage Low (V):</span>
@@ -65,28 +62,22 @@
             <button class="chart-btn" id="updateThresholdsBtn">Update Alerts</button>
         </div>
 
-        <div id="energySummary" class="energy-summary">
+        <div id="energySummary" class="energy-summary" style="display:none;">
             <div class="energy-title">🔋 Energy Consumption Summary</div>
             <div class="energy-grid" id="energyGrid"></div>
         </div>
 
-        <div id="alertsSection" class="alerts"></div>
-        <div id="statsSection" class="stats"></div>
-        
-        <div id="loadingSection" class="loading">
+        <div id="alertsSection" class="alerts" style="display:none;"></div>
+        <div id="statsSection" style="display:none;" class="stats"></div>
+        <div id="loadingSection" style="display:none;" class="loading">
             <div class="spinner"></div>
             <div>Processing your BMS logs...</div>
         </div>
+        <div id="errorSection" style="display:none;" class="error"></div>
         
-        <div id="errorSection" class="error"></div>
-        
-        <div id="chartsSection" class="charts-section">
+        <div id="chartsSection" class="charts-section" style="display:none;">
             <div class="zoom-info">
                 🔍 <strong>Zoom Controls:</strong> Scroll wheel to zoom | Click and drag to pan | Use reset buttons to restore view
-            </div>
-
-            <div class="chart-global-controls">
-                <button class="chart-btn secondary" onclick="resetAllZoom()">🔄 Reset All Zoom</button>
             </div>
             
             <div class="chart-container">
@@ -154,11 +145,8 @@
         </div>
     </div>
 
-    <!-- JavaScript Files -->
-    <!-- Load config and utils first -->
+    <!-- JS (order matters: helpers -> domain logic -> app) -->
     <script src="js/utils.js"></script>
-    <script src="js/config.js"></script>
-    <!-- Then load the rest -->
     <script src="js/parser.js"></script>
     <script src="js/calculations.js"></script>
     <script src="js/charts.js"></script>
