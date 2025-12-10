@@ -1,58 +1,176 @@
+/* Medium screens (tablets, small laptops) */
+@media (max-width: 1024px) {
+    body {
+        padding: 16px;
+    }
+
+    .container {
+        border-radius: 10px;
+    }
+
+    .charts-section {
+        padding: 30px 24px;
+    }
+
+    .stats {
+        padding: 24px;
+    }
+
+    .energy-summary {
+        margin: 20px 24px;
+    }
+
+    .threshold-controls,
+    .alerts,
+    .error,
+    .progress-section {
+        margin-inline: 24px;
+    }
+}
+
+/* Tablets & large phones */
 @media (max-width: 768px) {
     .container {
         margin: 10px;
-        border-radius: 8px;
+        border-radius: 10px;
     }
-    
+
     .header {
-        padding: 20px 15px;
+        padding: 22px 16px;
+        text-align: left;
     }
-    
+
     h1 {
-        font-size: 1.8em;
+        font-size: 1.9em;
     }
-    
-    .upload-section, .charts-section {
-        padding: 20px 15px;
+
+    .subtitle {
+        font-size: 0.95em;
     }
-    
+
+    .upload-section,
+    .charts-section {
+        padding: 22px 16px;
+    }
+
     .stats {
         grid-template-columns: 1fr;
-        gap: 10px;
-        padding: 20px 15px;
+        gap: 12px;
+        padding: 20px 16px;
     }
-    
+
     .energy-summary {
-        margin: 20px 15px;
+        margin: 20px 16px;
         padding: 20px;
+        text-align: left;
     }
-    
+
     .energy-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .threshold-row {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
+    .threshold-controls,
+    .alerts,
+    .error,
+    .progress-section {
+        margin-inline: 16px;
+    }
+
     .chart-header {
         flex-direction: column;
         gap: 10px;
         align-items: flex-start;
     }
-    
+
     .chart-controls {
-        align-self: flex-end;
+        align-self: flex-start;
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        row-gap: 8px;
     }
-    
+
+    .chart-btn {
+        padding-inline: 12px;
+    }
+
     .controls {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
     }
-    
+
     .control-btn {
         width: 100%;
-        max-width: 250px;
+        max-width: 280px;
+        margin-inline: auto;
+    }
+
+    canvas {
+        max-height: 320px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        margin: 6px;
+        border-radius: 8px;
+    }
+
+    .header {
+        padding: 18px 14px;
+    }
+
+    h1 {
+        font-size: 1.6em;
+    }
+
+    .subtitle {
+        font-size: 0.9em;
+    }
+
+    .upload-section,
+    .charts-section {
+        padding: 18px 14px;
+    }
+
+    .stats {
+        padding: 16px 14px;
+    }
+
+    .energy-summary {
+        margin: 16px 14px;
+        padding: 18px 14px;
+    }
+
+    .threshold-controls,
+    .alerts,
+    .error,
+    .progress-section {
+        margin-inline: 14px;
+    }
+
+    .chart-title {
+        font-size: 1.05em;
+    }
+
+    .control-btn,
+    .chart-btn {
+        font-size: 0.85em;
+    }
+
+    .file-label {
+        width: 100%;
+        text-align: center;
+        padding-inline: 20px;
     }
 }
