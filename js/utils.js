@@ -1,37 +1,9 @@
-// js/utils.js
-
-function updateProgress(percent, text) {
-    const fill = document.getElementById('progressFill');
-    const label = document.getElementById('progressText');
-    if (!fill || !label) return;
-
-    fill.style.width = percent + '%';
-    label.textContent = text;
-}
-
-function animateElements() {
-    setTimeout(() => {
-        document.querySelectorAll('.stat-card').forEach(card => {
-            card.classList.add('animate');
-        });
-        document.querySelectorAll('.chart-container').forEach(container => {
-            container.classList.add('animate');
-        });
-    }, 100);
-}
-
 function showError(message) {
-    const loading = document.getElementById('loadingSection');
-    const progress = document.getElementById('progressSection');
+    document.getElementById('loadingSection').style.display = 'none';
+    document.getElementById('progressSection').style.display = 'none';
     const errorSection = document.getElementById('errorSection');
-
-    if (loading) loading.style.display = 'none';
-    if (progress) progress.style.display = 'none';
-    if (errorSection) {
-        errorSection.style.display = 'block';
-        errorSection.textContent = message;
-    }
-
+    errorSection.style.display = 'block';
+    errorSection.textContent = message;
     console.error('BMS Visualizer Error:', message);
 }
 
@@ -52,28 +24,36 @@ function cleanup() {
 
 function clearData() {
     cleanup();
-    const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
-    const chartsSection = document.getElementById('chartsSection');
-    const statsSection = document.getElementById('statsSection');
-    const thresholdControls = document.getElementById('thresholdControls');
-    const alertsSection = document.getElementById('alertsSection');
-    const errorSection = document.getElementById('errorSection');
-    const energySummary = document.getElementById('energySummary');
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileName').textContent = 'No file selected';
+    document.getElementById('chartsSection').style.display = 'none';
+    document.getElementById('statsSection').style.display = 'none';
+    document.getElementById('thresholdControls').style.display = 'none';
+    document.getElementById('alertsSection').style.display = 'none';
+    document.getElementById('errorSection').style.display = 'none';
+    document.getElementById('energySummary').style.display = 'none';
+}
 
-    if (fileInput) fileInput.value = '';
-    if (fileName) fileName.textContent = 'No file selected';
-    if (chartsSection) chartsSection.style.display = 'none';
-    if (statsSection) statsSection.style.display = 'none';
-    if (thresholdControls) thresholdControls.style.display = 'none';
-    if (alertsSection) alertsSection.style.display = 'none';
-    if (errorSection) errorSection.style.display = 'none';
-    if (energySummary) energySummary.style.display = 'none';
+function resetZoom(chartName) {
+    if (charts[chartName]) {
+        charts[chartName].resetZoom();
+    }
+}
+
+function downloadChart(chartName) {
+    if (charts[chartName]) {
+        const link = document.createElement('a');
+        link.download = `bms_${chartName}_chart.png`;
+        link.href = charts[chartName].toBase64Image();
+        link.click();
+    }
 }
 
 function downloadCSV(csv, filename) {
     try {
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['\uFEFF' + csv], {
+            type: 'text/csv;charset=utf-8;'
+        });
         const url = URL.createObjectURL(blob);
 
         const link = document.createElement('a');
@@ -100,42 +80,105 @@ function exportData() {
         return;
     }
 
-    try {
-        const includeFields = ['timestamp', 'relativeTime', 'voltage', 'current', 'soc', 'power', 'cumulativeEnergyKWh'];
-        const exportDataArray = currentData.map(entry => {
-            const row = {};
-            includeFields.forEach(field => {
-                row[field] = entry[field] !== undefined && entry[field] !== null ? entry[field] : '';
-            });
-            return row;
+    const includeFields = [
+        'timestamp',
+        'relativeTime',
+        'voltage',
+        'current',
+        'soc',
+        'power',
+        'cumulativeEnergyKWh'
+    ];
+    const exportDataArray = currentData.map(entry => {
+        const row = {};
+        includeFields.forEach(field => {
+            row[field] =
+                entry[field] !== undefined && entry[field] !== null
+                    ? entry[field]
+                    : '';
         });
+        return row;
+    });
 
-        const csv = Papa.unparse(exportDataArray, {
-            header: true,
-            skipEmptyLines: true
-        });
+    const csv = Papa.unparse(exportDataArray, {
+        header: true,
+        skipEmptyLines: true
+    });
 
-        downloadCSV(csv, `bms_data_${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadCSV(
+        csv,
+        `bms_data_${new Date().toISOString().slice(0, 10)}.csv`
+    );
 
-        const exportBtn = document.getElementById('exportBtn');
-        if (exportBtn) {
-            const originalText = exportBtn.textContent;
-            exportBtn.textContent = '✅ Export Successful!';
-            exportBtn.style.background = 'var(--success)';
-            exportBtn.style.color = 'white';
-            setTimeout(() => {
-                exportBtn.textContent = originalText;
-                exportBtn.style.background = '';
-                exportBtn.style.color = '';
-            }, 2000);
-        }
-
-    } catch (error) {
-        console.error('Export error:', error);
-        alert('Export failed: ' + error.message);
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        const originalText = exportBtn.textContent;
+        exportBtn.textContent = '✅ Export Successful!';
+        exportBtn.style.background = 'var(--success)';
+        exportBtn.style.color = 'white';
+        setTimeout(() => {
+            exportBtn.textContent = originalText;
+            exportBtn.style.background = '';
+            exportBtn.style.color = '';
+        }, 2000);
     }
 }
 
 function exportFullData() {
     exportData();
+}
+
+function setTimeMode(mode) {
+    timeMode = mode;
+    document
+        .querySelectorAll('.control-btn')
+        .forEach(btn => btn.classList.remove('active'));
+
+    if (mode === 'absolute') {
+        document.getElementById('absoluteTimeBtn').classList.add('active');
+    } else {
+        document.getElementById('relativeTimeBtn').classList.add('active');
+    }
+
+    if (currentData.length > 0) {
+        const dataToUse = smoothingEnabled
+            ? smoothData(currentData)
+            : currentData;
+        createCharts(dataToUse);
+    }
+}
+
+function toggleSmoothing() {
+    smoothingEnabled = !smoothingEnabled;
+    document.getElementById('smoothingBtn').textContent =
+        'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
+    if (currentData.length > 0) {
+        const dataToUse = smoothingEnabled
+            ? smoothData(currentData)
+            : currentData;
+        createCharts(dataToUse);
+    }
+}
+
+function updateThresholds() {
+    thresholds.voltageLow = parseFloat(
+        document.getElementById('thVoltageLow').value
+    );
+    thresholds.voltageHigh = parseFloat(
+        document.getElementById('thVoltageHigh').value
+    );
+    thresholds.currentMax = parseFloat(
+        document.getElementById('thCurrentMax').value
+    );
+    thresholds.socLow = parseFloat(
+        document.getElementById('thSocLow').value
+    );
+
+    if (currentData.length > 0) {
+        const dataToUse = smoothingEnabled
+            ? smoothData(currentData)
+            : currentData;
+        checkAlerts(dataToUse);
+        createCharts(dataToUse);
+    }
 }

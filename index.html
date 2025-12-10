@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BMS Log Visualizer</title>
 
+    <!-- Main styles -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+
     <!-- External libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-    <!-- Your CSS -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
     <div class="container">
@@ -69,15 +69,17 @@
 
         <div id="alertsSection" class="alerts" style="display:none;"></div>
         <div id="statsSection" style="display:none;" class="stats"></div>
+
         <div id="loadingSection" style="display:none;" class="loading">
             <div class="spinner"></div>
             <div>Processing your BMS logs...</div>
         </div>
+
         <div id="errorSection" style="display:none;" class="error"></div>
         
         <div id="chartsSection" class="charts-section" style="display:none;">
             <div class="zoom-info">
-                🔍 <strong>Zoom Controls:</strong> Scroll wheel to zoom | Click and drag to pan | Use reset buttons to restore view
+                🔍 <strong>Zoom Controls:</strong> Scroll to zoom | Drag to pan | Use reset buttons to restore view
             </div>
             
             <div class="chart-container">
@@ -144,6 +146,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Your scripts: **order matters** -->
     <script src="js/config.js"></script>
     <script src="js/parser.js"></script>
     <script src="js/calculations.js"></script>

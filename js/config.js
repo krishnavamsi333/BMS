@@ -1,6 +1,5 @@
-// js/config.js
+// Global configuration & state
 
-// Global configuration for charts, thresholds, etc.
 const CONFIG = {
     MAX_FILE_SIZE: 50 * 1024 * 1024,
     CHART: {
@@ -25,11 +24,12 @@ const CONFIG = {
     }
 };
 
-// Global state
+// Global variables
 let charts = {};
 let currentData = [];
 let timeMode = 'absolute';
 let smoothingEnabled = false;
+
 let energyData = {
     totalKWh: 0,
     netKWh: 0,
@@ -37,6 +37,7 @@ let energyData = {
     dischargedKWh: 0,
     efficiency: 0
 };
+
 let thresholds = {
     voltageLow: CONFIG.THRESHOLDS.VOLTAGE.min,
     voltageHigh: CONFIG.THRESHOLDS.VOLTAGE.max,
