@@ -7,26 +7,57 @@ function calculateEnergyConsumption(data) {
     let chargedEnergyWh = 0;
     let dischargedEnergyWh = 0;
 
+    // Initialize first point
+    if (data[0]) {
+        data[0].cumulativeEnergyWh = 0;
+        data[0].cumulativeEnergyKWh = 0;
+    }
+
     for (let i = 1; i < data.length; i++) {
         const prev = data[i - 1];
         const curr = data[i];
-        const timeDiffHours =
-            (curr.relativeTime - prev.relativeTime) / 3600;
-        const avgPower = ((prev.power || 0) + (curr.power || 0)) / 2;
-        const intervalEnergyWh = avgPower * timeDiffHours;
-
+        
+        // Skip if essential data is missing
+        if (!prev.current || !curr.current || !prev.voltage || !curr.voltage) {
+            curr.cumulativeEnergyWh = prev.cumulativeEnergyWh || 0;
+            curr.cumulativeEnergyKWh = (prev.cumulativeEnergyWh || 0) / 1000;
+            continue;
+        }
+        
+        // Time difference in hours
+        const timeDiffSeconds = curr.relativeTime - prev.relativeTime;
+        const timeDiffHours = timeDiffSeconds / 3600;
+        
+        // Average values for this interval
+        const avgCurrent = (prev.current + curr.current) / 2;
+        const avgVoltage = (prev.voltage + curr.voltage) / 2;
+        
+        // Calculate energy for this interval
+        // Energy (Wh) = Power (W) × Time (h) = Voltage × Current × Time
+        const intervalEnergyWh = avgVoltage * avgCurrent * timeDiffHours;
+        
+        // Add to total (net energy change)
         totalEnergyWh += intervalEnergyWh;
 
-        if (intervalEnergyWh > 0) {
-            dischargedEnergyWh += intervalEnergyWh;
-        } else {
-            chargedEnergyWh += Math.abs(intervalEnergyWh);
+        // FIXED: Classify based on correct sign convention
+        // Positive current = CHARGING (energy flowing INTO battery)
+        // Negative current = DISCHARGING (energy flowing OUT OF battery)
+        if (avgCurrent > 0) {
+            // Positive current = Charging
+            chargedEnergyWh += intervalEnergyWh;
+        } else if (avgCurrent < 0) {
+            // Negative current = Discharging
+            // intervalEnergyWh will be negative, so we use absolute value
+            dischargedEnergyWh += Math.abs(intervalEnergyWh);
         }
+        // If avgCurrent is exactly 0, we don't count it as either
 
+        // Store cumulative energy
         curr.cumulativeEnergyWh = totalEnergyWh;
         curr.cumulativeEnergyKWh = totalEnergyWh / 1000;
     }
 
+    // Store in global energyData object
     energyData = {
         totalKWh: totalEnergyWh / 1000,
         netKWh: totalEnergyWh / 1000,
@@ -35,36 +66,44 @@ function calculateEnergyConsumption(data) {
         efficiency:
             chargedEnergyWh > 0
                 ? (dischargedEnergyWh / chargedEnergyWh) * 100
-                : 100
+                : (dischargedEnergyWh > 0 ? 0 : 100)
     };
+
+    // Debug logging
+    console.log('Energy Calculation Summary (FIXED SIGN CONVENTION):');
+    console.log('- Total samples:', data.length);
+    console.log('- Sign Convention: Positive current = CHARGING, Negative current = DISCHARGING');
+    console.log('- Charged Energy:', chargedEnergyWh.toFixed(2), 'Wh');
+    console.log('- Discharged Energy:', dischargedEnergyWh.toFixed(2), 'Wh');
+    console.log('- Net Energy:', totalEnergyWh.toFixed(2), 'Wh');
+    
+    // Sample some current values for debugging
+    const sampleCurrents = data.slice(0, Math.min(10, data.length)).map(d => d.current);
+    console.log('- Sample currents (first 10):', sampleCurrents);
 }
 
 function displayEnergySummary() {
     const energyGrid = document.getElementById('energyGrid');
+    
+    // Determine if net charge or discharge
+    const netLabel = energyData.netKWh >= 0 ? 'Net Charged' : 'Net Discharged';
+    
     energyGrid.innerHTML = `
         <div class="energy-item">
-            <div class="energy-label">Total Energy Used</div>
-            <div class="energy-value">${Math.abs(
-                energyData.netKWh
-            ).toFixed(3)} kWh</div>
+            <div class="energy-label">Net Energy (${netLabel})</div>
+            <div class="energy-value">${Math.abs(energyData.netKWh).toFixed(3)} kWh</div>
         </div>
         <div class="energy-item">
             <div class="energy-label">Energy Discharged</div>
-            <div class="energy-value">${energyData.dischargedKWh.toFixed(
-                3
-            )} kWh</div>
+            <div class="energy-value">${energyData.dischargedKWh.toFixed(3)} kWh</div>
         </div>
         <div class="energy-item">
             <div class="energy-label">Energy Charged</div>
-            <div class="energy-value">${energyData.chargedKWh.toFixed(
-                3
-            )} kWh</div>
+            <div class="energy-value">${energyData.chargedKWh.toFixed(3)} kWh</div>
         </div>
         <div class="energy-item">
             <div class="energy-label">Round-trip Efficiency</div>
-            <div class="energy-value">${energyData.efficiency.toFixed(
-                1
-            )}%</div>
+            <div class="energy-value">${energyData.efficiency.toFixed(1)}%</div>
         </div>
     `;
 }
@@ -262,9 +301,9 @@ function displayStats(data) {
                     : 'N/A'
         },
         {
-            label: 'Energy Used',
+            label: 'Net Energy',
             value:
-                Math.abs(energyData.netKWh).toFixed(3) + ' kWh',
+                energyData.netKWh.toFixed(3) + ' kWh',
             status: 'energy'
         },
         {
