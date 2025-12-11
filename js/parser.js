@@ -1,186 +1,147 @@
 // js/parser.js
-// Robust YAML-like parser for your BMS log blocks.
-// - Exports parseYAML(text) and validateAndFilterData(data).
-// - Adds 'direction' based on current sign: negative => "discharging", positive => "charging".
-// - Computes power if missing, normalizes current in A and mA, computes timestamps and relativeTime.
-// - Safe: skips malformed blocks and logs warnings.
+// Put this file at BMS/js/parser.js (replace the old one).
+// Exposes parseYAML and validateAndFilterData on window so index.html and other scripts can call them.
 
-(function (root, factory) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.BMSParser = factory();
-    }
-})(typeof self !== 'undefined' ? self : this, function () {
-    'use strict';
+// Small config object you can change at runtime:
+// - invertCurrent: set to true if the YAML uses the opposite sign convention and you want to flip it.
+window.PARSER = window.PARSER || { invertCurrent: false };
 
-    // Regex to match floating numbers (including exponent), possibly negative
-    const floatRx = '([-+]?(?:\\d+\\.\\d+|\\d+|\\.\\d+)(?:[eE][-+]?\\d+)?)';
+(function () {
+  'use strict';
 
-    // Common keys we expect; we try to match variants (e.g., "current", "current_a", "current_mA")
-    const patterns = {
-        voltage: new RegExp('^\\s*voltage\\s*:\\s*' + floatRx + '\\s*$', 'mi'),
-        current: new RegExp('^\\s*current\\s*:\\s*' + floatRx + '\\s*$', 'mi'),
-        current_mA: new RegExp('^\\s*current_mA\\s*:\\s*' + floatRx + '\\s*$', 'mi'),
-        soc: new RegExp('^\\s*soc\\s*:\\s*' + floatRx + '\\s*$', 'mi'),
-        power: new RegExp('^\\s*power\\s*:\\s*' + floatRx + '\\s*$', 'mi'),
-        sec: new RegExp('^\\s*sec\\s*:\\s*(\\d+)\\s*$', 'mi'),
-        nanosec: new RegExp('^\\s*nanosec\\s*:\\s*(\\d+)\\s*$', 'mi')
-    };
+  function safeParseFloat(s) {
+    const v = parseFloat(s);
+    return Number.isFinite(v) ? v : undefined;
+  }
 
-    function parseNumber(str) {
-        if (str === undefined || str === null) return undefined;
-        const n = Number(str);
-        return Number.isFinite(n) ? n : undefined;
-    }
+  // parseYAML: returns array of entries { sec, nanosec, timestamp, relativeTime, voltage, current, soc, power }
+  function parseYAML(text) {
+    try {
+      const entries = [];
+      // Split on document separator '---' as used in many ROS YAML logs
+      const blocks = text.split('---').filter(b => b.trim().length > 0);
 
-    function parseBlock(block) {
-        // Return null if block does not contain enough info
-        const entry = {};
+      for (let block of blocks) {
+        try {
+          const entry = {};
+          // Basic regexes: allow optional + or - and decimals
+          const patterns = {
+            voltage: /voltage:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            current: /current:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            soc: /soc:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            power: /power:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            sec: /sec:\s*(\d+)/,
+            nanosec: /nanosec:\s*(\d+)/
+          };
 
-        // Try sec & nanosec first (timestamps are critical)
-        const secMatch = block.match(patterns.sec);
-        if (secMatch) entry.sec = parseInt(secMatch[1], 10);
-
-        const nsecMatch = block.match(patterns.nanosec);
-        if (nsecMatch) entry.nanosec = parseInt(nsecMatch[1], 10);
-
-        // Values: voltage, current (A), current_mA, soc, power
-        const vMatch = block.match(patterns.voltage);
-        if (vMatch) entry.voltage = parseNumber(vMatch[1]);
-
-        const cMatch = block.match(patterns.current);
-        if (cMatch) entry.current = parseNumber(cMatch[1]);
-
-        const cmMatch = block.match(patterns.current_mA);
-        if (cmMatch && entry.current === undefined) {
-            // convert mA -> A
-            const val = parseNumber(cmMatch[1]);
-            if (val !== undefined) entry.current = val / 1000;
-            entry._original_current_mA = val;
-        }
-
-        const socMatch = block.match(patterns.soc);
-        if (socMatch) entry.soc = parseNumber(socMatch[1]);
-
-        const pMatch = block.match(patterns.power);
-        if (pMatch) entry.power = parseNumber(pMatch[1]);
-
-        // Require at least sec and one reading (voltage/current/soc)
-        if (entry.sec === undefined || (entry.voltage === undefined && entry.current === undefined && entry.soc === undefined)) {
-            return null;
-        }
-
-        // Compute timestamp
-        entry.timestamp = entry.sec + (entry.nanosec || 0) * 1e-9;
-
-        // Normalizations & derived fields
-        if (entry.current !== undefined) {
-            entry.current_A = entry.current;
-            entry.current_mA = entry.current * 1000;
-            // Direction field: negative => discharging, positive => charging
-            if (entry.current_A < 0) {
-                entry.direction = 'discharging';
-            } else if (entry.current_A > 0) {
-                entry.direction = 'charging';
-            } else {
-                entry.direction = 'idle';
+          Object.entries(patterns).forEach(([key, pattern]) => {
+            const m = block.match(pattern);
+            if (m && m[1] !== undefined) {
+              if (key === 'sec' || key === 'nanosec') {
+                entry[key] = parseInt(m[1], 10);
+              } else {
+                entry[key] = safeParseFloat(m[1]);
+              }
             }
-        }
+          });
 
-        // If power missing and voltage & current present -> compute power (W)
-        if (entry.power === undefined && entry.voltage !== undefined && entry.current !== undefined) {
-            entry.power = entry.voltage * entry.current;
-        }
-
-        return entry;
-    }
-
-    function parseYAML(text) {
-        if (typeof text !== 'string') {
-            throw new Error('parseYAML expects a string');
-        }
-
-        const entries = [];
-        // Split on YAML document marker '---'. Keep only non-empty blocks.
-        const blocks = text.split(/^-{3,}\s*$/m).map(b => b.trim()).filter(b => b.length > 0);
-
-        if (blocks.length === 0) return [];
-
-        for (let i = 0; i < blocks.length; i++) {
-            const block = blocks[i];
-            try {
-                const parsed = parseBlock(block);
-                if (parsed) {
-                    entries.push(parsed);
-                } else {
-                    // skip but log
-                    // console.warn(`parser: skipped block ${i} (missing sec or values)`);
-                }
-            } catch (err) {
-                // skip malformed block
-                // console.warn('parser: error parsing block', err);
+          // if sec exists and at least one metric is present, accept
+          if (entry.sec !== undefined && (entry.voltage !== undefined || entry.current !== undefined || entry.soc !== undefined || entry.power !== undefined)) {
+            entry.nanosec = entry.nanosec || 0;
+            entry.timestamp = entry.sec + entry.nanosec * 1e-9;
+            // Optionally invert current sign if user wants the opposite convention
+            if (entry.current !== undefined && window.PARSER.invertCurrent) {
+              entry.current = -entry.current;
             }
+            entries.push(entry);
+          }
+        } catch (blockError) {
+          console.warn('Skipping malformed block in YAML parser:', blockError);
         }
+      }
 
-        // Compute relativeTime
-        if (entries.length > 0) {
-            const t0 = entries[0].timestamp;
-            for (const e of entries) {
-                e.relativeTime = e.timestamp - t0;
-            }
-        }
-
-        return entries;
-    }
-
-    function validateAndFilterData(data) {
-        if (!Array.isArray(data)) {
-            throw new Error('validateAndFilterData expects an array');
-        }
-
-        const filtered = data.filter(entry => {
-            // timestamp must exist and be finite
-            if (entry.timestamp === undefined || !isFinite(entry.timestamp)) return false;
-
-            // voltage if present must be > 0 (or you can allow 0 if needed)
-            if (entry.voltage !== undefined && (!isFinite(entry.voltage) || entry.voltage <= 0)) return false;
-
-            // soc if present must be between 0 and 100
-            if (entry.soc !== undefined && (!isFinite(entry.soc) || entry.soc < 0 || entry.soc > 100)) return false;
-
-            return true;
-        }).map(entry => {
-            const out = Object.assign({}, entry);
-            // Ensure power exists
-            if (out.power === undefined) {
-                if (out.voltage !== undefined && out.current !== undefined) {
-                    out.power = out.voltage * out.current;
-                } else {
-                    out.power = 0;
-                }
-            }
-            // Ensure numeric conversions exist
-            if (out.current !== undefined) {
-                out.current_A = out.current_A !== undefined ? out.current_A : out.current;
-                out.current_mA = out.current_mA !== undefined ? out.current_mA : out.current * 1000;
-            }
-            return out;
+      if (entries.length > 0) {
+        const firstTimestamp = entries[0].timestamp;
+        entries.forEach(entry => {
+          entry.relativeTime = entry.timestamp - firstTimestamp;
         });
+      }
 
-        return filtered;
+      return entries;
+    } catch (error) {
+      console.error('YAML parsing failed:', error);
+      return [];
     }
+  }
 
-    // Small convenience function to parse a file content (string) and return validated entries.
-    function parseAndValidate(text) {
-        const parsed = parseYAML(text);
-        return validateAndFilterData(parsed);
+  // Validate/filter data and compute power if missing.
+  function validateAndFilterData(data) {
+    if (!Array.isArray(data)) return [];
+
+    const filtered = data
+      .filter(entry => {
+        // timestamp must be valid
+        if (entry.timestamp === undefined || Number.isNaN(entry.timestamp)) return false;
+
+        // Voltage must be positive if present
+        if (entry.voltage !== undefined && (Number.isNaN(entry.voltage) || entry.voltage <= 0)) return false;
+
+        // SOC if present must be within 0-100
+        if (entry.soc !== undefined && (Number.isNaN(entry.soc) || entry.soc < 0 || entry.soc > 100)) return false;
+
+        // Current allowed to be positive or negative (we don't filter it here)
+        return true;
+      })
+      .map((entry, idx, arr) => {
+        const e = Object.assign({}, entry);
+        // Calculate power if not present: p = v * i
+        if (e.power === undefined) {
+          if (typeof e.voltage === 'number' && typeof e.current === 'number') {
+            e.power = e.voltage * e.current;
+          } else {
+            e.power = undefined;
+          }
+        }
+        return e;
+      });
+
+    // Optionally compute cumulative energy (Wh) by trapezoidal integration over power/time and attach to each entry
+    // Energy will be in watt-seconds (J) unless converted; here we'll compute Wh for convenience.
+    let cumulativeWh = 0;
+    for (let i = 1; i < filtered.length; ++i) {
+      const prev = filtered[i - 1];
+      const cur = filtered[i];
+      if (prev.power !== undefined && cur.power !== undefined) {
+        const dt = cur.timestamp - prev.timestamp; // seconds
+        // trapezoid: average power * dt seconds -> energy in watt-seconds
+        const wattSeconds = ((prev.power + cur.power) / 2) * dt;
+        const wh = wattSeconds / 3600.0;
+        cumulativeWh += wh;
+      }
+      filtered[i].cumulativeWh = cumulativeWh;
     }
+    if (filtered.length > 0 && filtered[0].cumulativeWh === undefined) filtered[0].cumulativeWh = 0;
 
-    // Export API
-    return {
-        parseYAML,
-        validateAndFilterData,
-        parseAndValidate
-    };
-});
+    return filtered;
+  }
+
+  // Expose to global scope so other files / index.html can call them directly
+  window.parseYAML = parseYAML;
+  window.validateAndFilterData = validateAndFilterData;
+
+  // Helpful quick test function (call from console)
+  window._parserSelfTest = function (raw) {
+    try {
+      const parsed = parseYAML(raw);
+      const validated = validateAndFilterData(parsed);
+      console.log('Parsed entries:', parsed.length, validated.length);
+      return validated;
+    } catch (e) {
+      console.error('Parser self-test error:', e);
+      return null;
+    }
+  };
+
+  // Basic info on load
+  console.info('parser.js loaded. Use window.parseYAML(text) and window.validateAndFilterData(array).');
+})();
