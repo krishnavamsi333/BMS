@@ -30,6 +30,9 @@ window.PARSER = window.PARSER || { invertCurrent: false };
             current: /current:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
             soc: /soc:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
             power: /power:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            remaining_ah: /remaining_ah:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
+            charge_fet: /charge_fet:\s*(\d+)/,
+            discharge_fet: /discharge_fet:\s*(\d+)/,
             sec: /sec:\s*(\d+)/,
             nanosec: /nanosec:\s*(\d+)/
           };
