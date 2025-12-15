@@ -3,8 +3,8 @@
     --bg-secondary: #f8fafc;
     --bg-card: #ffffff;
 
-    --accent-primary: #2563eb;
-    --accent-secondary: #10b981;
+    --accent-primary: #eb9525;
+    --accent-secondary: #24b910;
 
     --text-primary: #0f172a;
     --text-secondary: #64748b;
@@ -289,7 +289,7 @@ input[type="file"] {
 
 /* Energy summary */
 .energy-summary {
-    background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 40%, #22c55e 100%);
+    background: linear-gradient(135deg, #9e88d3 0%, #a855f7 40%, #22c55e 100%);
     color: white;
     padding: 25px;
     margin: 20px 40px;
@@ -608,4 +608,395 @@ canvas {
 
 .export-section a:hover {
     text-decoration: underline;
+}
+/* ============================================
+   IMPROVED GLOSSY GLASS EFFECT
+   Replace the existing glossy section at the end of style.css
+   ============================================ */
+
+/* Update body background to a more subtle, professional gradient */
+body {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    min-height: 100vh;
+}
+
+/* Add a subtle animated gradient overlay to body */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 55%),
+        radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.1) 0%, transparent 55%),
+        radial-gradient(circle at 45% 85%, rgba(139, 92, 246, 0.1) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+    animation: gradientShift 20s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+/* Main container - sophisticated frosted glass */
+.container {
+    background: rgba(255, 255, 255, 0.07) !important;
+    backdrop-filter: blur(20px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* Subtle inner glow */
+.container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.05) 0%,
+        rgba(255, 255, 255, 0.02) 100%
+    );
+    border-radius: var(--border-radius);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Header - elegant glass with accent gradient */
+.header {
+    background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.3) 0%,
+        rgba(16, 185, 129, 0.2) 100%
+    ) !important;
+    backdrop-filter: blur(20px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-bottom: none !important;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Upload section - clean translucent panel */
+.upload-section {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* File label - glass button with vibrant gradient */
+.file-label {
+    background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.9) 0%,
+        rgba(16, 185, 129, 0.9) 100%
+    ) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 
+        0 4px 15px rgba(59, 130, 246, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.file-label:hover {
+    box-shadow: 
+        0 8px 25px rgba(59, 130, 246, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-3px) scale(1.02);
+}
+
+/* File name - subtle text */
+.file-name {
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Control buttons - refined glass chips */
+.control-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(10px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.control-btn:hover {
+    background: rgba(59, 130, 246, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 
+        0 4px 12px rgba(59, 130, 246, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    transform: translateY(-2px);
+}
+
+.control-btn.active {
+    background: rgba(59, 130, 246, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 
+        0 4px 15px rgba(59, 130, 246, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Stats section - frosted glass panel */
+.stats {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Stat cards - individual glass cards */
+.stat-card {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(20px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    box-shadow: 
+        0 10px 25px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-5px);
+}
+
+.stat-label {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.stat-value {
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Energy summary - vibrant glass panel */
+.energy-summary {
+    background: linear-gradient(
+        135deg,
+        rgba(139, 92, 246, 0.25) 0%,
+        rgba(16, 185, 129, 0.2) 100%
+    ) !important;
+    backdrop-filter: blur(20px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 
+        0 8px 32px rgba(139, 92, 246, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.energy-item {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Chart containers - clear glass panels */
+.chart-container {
+    background: rgba(219, 203, 203, 0.808) !important;
+    backdrop-filter: blur(20px) saturate(200%) !important;
+    border: 1px solid rgba(243, 248, 219, 0.658) !important;
+    box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.chart-container:hover {
+    background: rgb(255, 255, 255) !important;
+    border-color: rgba(59, 130, 255, 0.3) !important;
+    box-shadow: 
+        0 10px 25px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.chart-title {
+    color: rgb(0, 0, 0) !important;
+    text-shadow: 0 1px 3px rgb(255, 255, 255);
+}
+
+/* Chart buttons - glass action buttons */
+.chart-btn {
+    background: rgba(0, 93, 243, 0.4) !important;
+    backdrop-filter: blur(10px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 
+        0 2px 8px rgba(59, 130, 246, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.chart-btn:hover {
+    background: rgba(30, 255, 22, 0.5) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 
+        0 4px 15px rgba(16, 185, 129, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+}
+
+.chart-btn.secondary {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.chart-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Threshold controls - glass input panel */
+.threshold-controls {
+    background: rgba(59, 130, 246, 0.1) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+.threshold-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.threshold-input {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(5px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
+.threshold-input:focus {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(59, 130, 246, 0.5) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Alerts section - warning glass */
+.alerts {
+    background: rgba(245, 158, 11, 0.15) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(245, 158, 11, 0.25) !important;
+}
+
+.alert-title {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.alert-item {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Error section - danger glass */
+.error {
+    background: rgba(239, 68, 68, 0.15) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    color: white !important;
+}
+
+/* Loading section */
+.loading {
+    color: white !important;
+}
+
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1) !important;
+    border-top: 4px solid rgba(59, 130, 246, 0.8) !important;
+}
+
+/* Zoom info */
+.zoom-info {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: white !important;
+    border: 1px solid rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Export section */
+.export-section {
+    background: rgba(255, 255, 255, 0.04) !important;
+    backdrop-filter: blur(15px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.export-section a {
+    color: #60a5fa !important;
+}
+
+/* Progress section */
+.progress-section {
+    color: white !important;
+}
+
+.progress-bar {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.progress-text {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Ensure all text is readable against glass backgrounds */
+.chart-header,
+.energy-grid,
+.threshold-row,
+.header h1,
+.header .subtitle {
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Improve canvas visibility on glass background */
+canvas {
+    position: relative;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.05) !important;
+    border-radius: 4px;
+}
+/* Cell voltage bar chart styling */
+.cell-info {
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+}
+
+.cell-count {
+    background: rgba(59, 130, 246, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* FET status indicators */
+.fet-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.fet-on {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.fet-off {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
 }

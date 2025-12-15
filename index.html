@@ -163,6 +163,50 @@
         </div>
       </section>
 
+      <!-- Cell Voltage & Temperature Charts -->
+      <section id="cellChartsSection" class="charts-section" style="display:none;" aria-label="Cell-level charts">
+          <div class="chart-container">
+              <div class="chart-header">
+                  <div class="chart-title">Cell Voltage Distribution</div>
+                  <div class="chart-controls">
+                      <button class="chart-btn" type="button" onclick="downloadChart('cellVoltage')">Download</button>
+                  </div>
+              </div>
+              <canvas id="cellVoltageChart" aria-label="Cell voltage distribution chart"></canvas>
+          </div>
+          
+          <div class="chart-container">
+              <div class="chart-header">
+                  <div class="chart-title">Cell Temperature Distribution</div>
+                  <div class="chart-controls">
+                      <button class="chart-btn" type="button" onclick="downloadChart('cellTemp')">Download</button>
+                  </div>
+              </div>
+              <canvas id="cellTempChart" aria-label="Cell temperature distribution chart"></canvas>
+          </div>
+          
+          <div class="chart-container">
+              <div class="chart-header">
+                  <div class="chart-title">Remaining Capacity (Ah)</div>
+                  <div class="chart-controls">
+                      <button class="chart-btn secondary" type="button" onclick="resetZoom('remainingAh')">Reset Zoom</button>
+                      <button class="chart-btn" type="button" onclick="downloadChart('remainingAh')">Download</button>
+                  </div>
+              </div>
+              <canvas id="remainingAhChart" aria-label="Remaining capacity chart"></canvas>
+          </div>
+          
+          <div class="chart-container">
+              <div class="chart-header">
+                  <div class="chart-title">FET Status</div>
+                  <div class="chart-controls">
+                      <button class="chart-btn" type="button" onclick="downloadChart('fetStatus')">Download</button>
+                  </div>
+              </div>
+              <canvas id="fetStatusChart" aria-label="FET status chart"></canvas>
+          </div>
+      </section>
+
       <footer class="export-section">
         <div>Built with ❤️ — <a href="https://github.com/krishnavamsi333/BMS" target="_blank" rel="noopener">Project on GitHub</a></div>
       </footer>

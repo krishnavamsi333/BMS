@@ -92,6 +92,12 @@ function processFile(file) {
                 displayEnergySummary();
                 checkAlerts(smoothedData);
                 createCharts(smoothedData);
+                createCellCharts(smoothedData); // NEW: Add cell charts
+                const hasCellData = smoothedData.some(d => d.cell_voltages || d.cell_temperatures);
+                if (hasCellData) {
+                    document.getElementById('cellChartsSection').style.display = 'block';
+                }
+
 
                 updateProgress(100, 'Complete!');
 
