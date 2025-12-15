@@ -146,6 +146,57 @@ function smoothData(data, windowSize = 5) {
     return smoothed;
 }
 
+function calculateCellStats(data) {
+    if (!data.length || !data[0].cell_voltages) return null;
+    
+    const stats = {
+        minCellVoltage: Infinity,
+        maxCellVoltage: -Infinity,
+        avgCellVoltage: 0,
+        cellImbalance: 0,
+        minCellTemp: Infinity,
+        maxCellTemp: -Infinity,
+        avgCellTemp: 0
+    };
+    
+    data.forEach(entry => {
+        if (entry.cell_voltages) {
+            const voltages = entry.cell_voltages.filter(v => v > 0 && v < 5); // Filter out 0 and invalid values
+            if (voltages.length) {
+                const minV = Math.min(...voltages);
+                const maxV = Math.max(...voltages);
+                const avgV = voltages.reduce((a, b) => a + b, 0) / voltages.length;
+                
+                stats.minCellVoltage = Math.min(stats.minCellVoltage, minV);
+                stats.maxCellVoltage = Math.max(stats.maxCellVoltage, maxV);
+                stats.avgCellVoltage = avgV; // Just track the average for the whole dataset
+                stats.cellImbalance = Math.max(stats.cellImbalance, maxV - minV);
+            }
+        }
+        
+        if (entry.cell_temperatures) {
+            const temps = entry.cell_temperatures.filter(t => t > -20 && t < 100); // Filter outliers
+            if (temps.length) {
+                const minT = Math.min(...temps);
+                const maxT = Math.max(...temps);
+                const avgT = temps.reduce((a, b) => a + b, 0) / temps.length;
+                
+                stats.minCellTemp = Math.min(stats.minCellTemp, minT);
+                stats.maxCellTemp = Math.max(stats.maxCellTemp, maxT);
+                stats.avgCellTemp = avgT;
+            }
+        }
+    });
+    
+    // Handle Infinity values (no valid data)
+    if (stats.minCellVoltage === Infinity) stats.minCellVoltage = 0;
+    if (stats.maxCellVoltage === -Infinity) stats.maxCellVoltage = 0;
+    if (stats.minCellTemp === Infinity) stats.minCellTemp = 0;
+    if (stats.maxCellTemp === -Infinity) stats.maxCellTemp = 0;
+    
+    return stats;
+}
+
 function checkAlerts(data) {
     const alerts = [];
 
@@ -209,6 +260,21 @@ function checkAlerts(data) {
         );
     }
 
+    // New: Cell voltage imbalance alert
+    const cellStats = calculateCellStats(data);
+    if (cellStats && cellStats.cellImbalance > 0.2) { // Alert if imbalance > 0.2V
+        alerts.push(
+            `High Cell Imbalance Alert: Maximum cell voltage difference is ${cellStats.cellImbalance.toFixed(3)}V (exceeds 0.2V threshold)`
+        );
+    }
+
+    // New: Cell temperature alert
+    if (cellStats && cellStats.maxCellTemp > 45) { // Alert if temperature > 45°C
+        alerts.push(
+            `High Cell Temperature Alert: Maximum cell temperature is ${cellStats.maxCellTemp.toFixed(1)}°C (exceeds 45°C threshold)`
+        );
+    }
+
     const alertsSection = document.getElementById('alertsSection');
     if (alerts.length > 0) {
         alertsSection.style.display = 'block';
@@ -237,6 +303,9 @@ function displayStats(data) {
         .filter(v => v !== undefined && !isNaN(v));
     const powers = data
         .map(d => d.power)
+        .filter(v => v !== undefined && !isNaN(v));
+    const remainingAhs = data
+        .map(d => d.remaining_ah)
         .filter(v => v !== undefined && !isNaN(v));
 
     if (voltages.length === 0) {
@@ -332,4 +401,71 @@ function displayStats(data) {
         .join('');
 
     document.getElementById('statsSection').innerHTML = statsHTML;
+    
+    // Calculate and display cell statistics if cell data exists
+    const cellStats = calculateCellStats(data);
+    if (cellStats && cellStats.minCellVoltage > 0) {
+        const cellStatsHTML = `
+            <div class="stat-card">
+                <div class="stat-label">Min Cell Voltage</div>
+                <div class="stat-value">${cellStats.minCellVoltage.toFixed(3)} V</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Max Cell Voltage</div>
+                <div class="stat-value">${cellStats.maxCellVoltage.toFixed(3)} V</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Cell Voltage</div>
+                <div class="stat-value">${cellStats.avgCellVoltage.toFixed(3)} V</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Cell Imbalance</div>
+                <div class="stat-value">${cellStats.cellImbalance.toFixed(3)} V</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Min Cell Temp</div>
+                <div class="stat-value">${cellStats.minCellTemp.toFixed(1)}°C</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Max Cell Temp</div>
+                <div class="stat-value">${cellStats.maxCellTemp.toFixed(1)}°C</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Cell Temp</div>
+                <div class="stat-value">${cellStats.avgCellTemp.toFixed(1)}°C</div>
+            </div>
+        `;
+        
+        // Append to existing stats
+        document.getElementById('statsSection').innerHTML += cellStatsHTML;
+    }
+    
+    // Add remaining capacity stats if available
+    if (remainingAhs.length > 0) {
+        const minRemainingAh = Math.min(...remainingAhs);
+        const maxRemainingAh = Math.max(...remainingAhs);
+        const avgRemainingAh = remainingAhs.reduce((a, b) => a + b, 0) / remainingAhs.length;
+        const capacityChange = maxRemainingAh - minRemainingAh;
+        
+        const capacityStatsHTML = `
+            <div class="stat-card">
+                <div class="stat-label">Min Capacity</div>
+                <div class="stat-value">${minRemainingAh.toFixed(2)} Ah</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Max Capacity</div>
+                <div class="stat-value">${maxRemainingAh.toFixed(2)} Ah</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Capacity</div>
+                <div class="stat-value">${avgRemainingAh.toFixed(2)} Ah</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Capacity Change</div>
+                <div class="stat-value">${capacityChange.toFixed(2)} Ah</div>
+            </div>
+        `;
+        
+        document.getElementById('statsSection').innerHTML += capacityStatsHTML;
+    }
 }
