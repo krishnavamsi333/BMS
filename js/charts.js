@@ -228,6 +228,8 @@ function createCharts(data) {
         );
     }
 
+    
+
     // Power chart
     if (data.some(d => d.power !== undefined)) {
         charts.power = new Chart(
@@ -252,6 +254,8 @@ function createCharts(data) {
         );
     }
 
+
+    
     // Energy chart
     if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
         charts.energy = new Chart(
@@ -286,5 +290,123 @@ function createCharts(data) {
                 }
             }
         );
+    }
+}
+function createCellCharts(data) {
+    // Only create if we have cell data
+    const hasCellData = data.some(d => d.cell_voltages || d.cell_temperatures);
+    if (!hasCellData) return;
+    
+    const timeValues = timeMode === 'relative' 
+        ? data.map(d => d.relativeTime || 0)
+        : data.map(d => d.timestamp || d.sec || 0);
+    
+    // 1. Cell Voltage Distribution Chart (for last data point)
+    const lastEntry = data[data.length - 1];
+    if (lastEntry.cell_voltages) {
+        const validVoltages = lastEntry.cell_voltages.filter(v => v > 0);
+        charts.cellVoltage = new Chart(document.getElementById('cellVoltageChart'), {
+            type: 'bar',
+            data: {
+                labels: validVoltages.map((_, i) => `Cell ${i + 1}`),
+                datasets: [{
+                    label: 'Cell Voltage (V)',
+                    data: validVoltages,
+                    backgroundColor: validVoltages.map(v => 
+                        v < 3.2 ? 'rgba(239, 68, 68, 0.7)' : 
+                        v > 3.5 ? 'rgba(245, 158, 11, 0.7)' : 
+                        'rgba(16, 185, 129, 0.7)'
+                    ),
+                    borderColor: 'rgba(59, 130, 246, 0.8)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(3)} V` } }
+                },
+                scales: {
+                    y: { 
+                        title: { display: true, text: 'Voltage (V)' },
+                        beginAtZero: false 
+                    }
+                }
+            }
+        });
+    }
+    
+    // 2. Remaining Capacity Chart
+    if (data.some(d => d.remaining_ah !== undefined)) {
+        charts.remainingAh = new Chart(document.getElementById('remainingAhChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Remaining Capacity (Ah)',
+                    data: data.map(d => d.remaining_ah),
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true
+                }]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    y: { 
+                        ...commonOptions.scales.y,
+                        title: { display: true, text: 'Capacity (Ah)' }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 3. FET Status Chart
+    if (data.some(d => d.charge_fet !== undefined)) {
+        charts.fetStatus = new Chart(document.getElementById('fetStatusChart'), {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [
+                    {
+                        label: 'Charge FET',
+                        data: data.map(d => d.charge_fet),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0
+                    },
+                    {
+                        label: 'Discharge FET',
+                        data: data.map(d => d.discharge_fet),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    ...commonOptions.scales,
+                    y: {
+                        ...commonOptions.scales.y,
+                        min: -0.1,
+                        max: 1.1,
+                        ticks: { 
+                            stepSize: 1,
+                            callback: value => value === 1 ? 'ON' : value === 0 ? 'OFF' : ''
+                        }
+                    }
+                }
+            }
+        });
     }
 }
