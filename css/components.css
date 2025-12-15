@@ -72,7 +72,7 @@
 .btn--outline {
     background: transparent;
     color: var(--accent-primary);
-    border-color: rgba(59, 130, 246, 0.6);
+    border-color: rgba(108, 228, 93, 0.699);
     box-shadow: none;
 }
 
