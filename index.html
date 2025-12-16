@@ -1,230 +1,394 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BMS Log Visualizer</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMS Log Visualizer - Professional Edition</title>
 
-    <meta
-      name="description"
-      content="Upload your BMS YAML logs and visualize voltage, current, SOC and energy consumption with interactive charts."
-    />
+  <meta name="description" content="Upload your BMS YAML logs and visualize voltage, current, SOC, energy, and cell-level metrics." />
+  <meta name="theme-color" content="#3b82f6" />
 
-    <!-- Main styles -->
-    <link rel="stylesheet" href="css/style.css" />
-    <link rel="stylesheet" href="css/components.css" />
-    <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
 
-    <!-- Libraries -->
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"
-      defer
-    ></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"
-      defer
-    ></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"
-      defer
-    ></script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/animations.css" />
 
-    <!-- Your app scripts (order matters) -->
-    <script src="js/config.js" defer></script>
-    <script src="js/utils.js" defer></script>
-    <script src="js/parser.js" defer></script>
-    <script src="js/calculations.js" defer></script>
-    <script src="js/charts.js" defer></script>
-    <script src="js/app.js" defer></script>
-  </head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
-  <body>
-    <a class="skip-to-content" href="#main">Skip to main content</a>
+  <script src="js/config.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/parser.js" defer></script>
+  <script src="js/calculations.js" defer></script>
+  <script src="js/charts.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
 
-    <div class="container" id="main" role="main">
-      <header class="header">
-        <h1>BMS Log Visualizer</h1>
-        <div class="subtitle">Upload ROS2-style YAML logs and explore battery metrics.</div>
-      </header>
+<body>
+  <a class="skip-to-content" href="#main">Skip to main content</a>
 
-      <section class="upload-section" aria-labelledby="uploadLabel">
-        <div class="file-input-wrapper">
-          <input id="fileInput" type="file" accept=".yaml,.yml,.txt" />
-          <label for="fileInput" class="file-label" id="uploadLabel">Choose file</label>
-        </div>
-        <div id="fileName" class="file-name">No file selected</div>
+  <div class="container" id="main" role="main">
+    <header class="header">
+      <h1>⚡ BMS Log Visualizer</h1>
+      <div class="subtitle">
+        Professional Battery Management System Analytics with 16-Cell Monitoring
+      </div>
+    </header>
 
-        <div class="controls" role="toolbar" aria-label="Visualization controls">
-          <button id="absoluteTimeBtn" class="control-btn active" aria-pressed="true">Absolute Time</button>
-          <button id="relativeTimeBtn" class="control-btn" aria-pressed="false">Relative Time</button>
-          <button id="smoothingBtn" class="control-btn" aria-pressed="false">Smoothing: Off</button>
-          <button id="clearBtn" class="control-btn">Clear</button>
-          <button id="exportBtn" class="control-btn">Export CSV</button>
-          <button id="exportFullBtn" class="control-btn">Export Full</button>
-        </div>
-      </section>
+    <section class="upload-section" aria-labelledby="upload-heading">
+      <h2 id="upload-heading" class="sr-only">File Upload</h2>
+      
+      <div class="file-input-wrapper">
+        <input 
+          id="fileInput" 
+          type="file" 
+          accept=".yaml,.yml,.txt" 
+          aria-describedby="fileName"
+        />
+        <label for="fileInput" class="file-label">
+          <span aria-hidden="true">📂</span> Choose BMS Log File
+        </label>
+      </div>
+      <div id="fileName" class="file-name" role="status" aria-live="polite">
+        No file selected
+      </div>
 
-      <section id="progressSection" class="progress-section" style="display:none;">
-        <div class="progress-bar" aria-hidden="true">
-          <div id="progressFill" class="progress-fill"></div>
-        </div>
-        <div id="progressText" class="progress-text">Idle</div>
-      </section>
+      <div class="controls" role="toolbar" aria-label="Data controls">
+        <button 
+          id="absoluteTimeBtn" 
+          class="control-btn active" 
+          aria-pressed="true"
+          title="Show absolute timestamps"
+        >
+          🕐 Absolute Time
+        </button>
+        <button 
+          id="relativeTimeBtn" 
+          class="control-btn" 
+          aria-pressed="false"
+          title="Show time relative to start"
+        >
+          ⏱️ Relative Time
+        </button>
+        <button 
+          id="smoothingBtn" 
+          class="control-btn" 
+          aria-pressed="false"
+          title="Apply data smoothing filter"
+        >
+          📊 Smoothing: Off
+        </button>
+        <button 
+          id="clearBtn" 
+          class="control-btn" 
+          title="Clear all data and reset"
+        >
+          🗑️ Clear
+        </button>
+        <button 
+          id="exportBtn" 
+          class="control-btn" 
+          title="Export main metrics to CSV"
+        >
+          💾 Export CSV
+        </button>
+      </div>
+    </section>
 
-      <section id="loadingSection" class="loading" style="display:none;" aria-live="polite">
-        <div class="spinner" role="status" aria-hidden="true"></div>
-        <div>Processing file…</div>
-      </section>
+    <section 
+      id="progressSection" 
+      class="progress-section" 
+      style="display:none;" 
+      role="status" 
+      aria-live="polite"
+    >
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <div id="progressText" class="progress-text">Idle</div>
+    </section>
 
-      <section id="errorSection" class="error" style="display:none;" role="alert" aria-live="assertive"></section>
+    <section 
+      id="loadingSection" 
+      class="loading" 
+      style="display:none;" 
+      role="status" 
+      aria-live="polite"
+    >
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Processing file...</p>
+    </section>
 
-      <section id="alertsSection" class="alerts" style="display:none;" aria-live="polite"></section>
+    <section 
+      id="errorSection" 
+      class="error" 
+      style="display:none;" 
+      role="alert"
+    ></section>
 
-      <section id="statsSection" class="stats" style="display:none;" aria-label="Summary statistics"></section>
+    <section 
+      id="alertsSection" 
+      class="alerts" 
+      style="display:none;" 
+      role="alert"
+    ></section>
 
-      <section id="energySummary" class="energy-summary" style="display:none;">
-        <div class="energy-title">Energy Summary</div>
-        <div id="energyGrid" class="energy-grid"></div>
-      </section>
+    <section 
+      id="statsSection" 
+      class="stats" 
+      style="display:none;" 
+      aria-labelledby="stats-heading"
+    >
+      <h2 id="stats-heading" class="sr-only">Key Statistics</h2>
+    </section>
 
-      <section id="thresholdControls" class="threshold-controls" style="display:none;" aria-label="Threshold controls">
-        <div class="threshold-row">
-          <label class="threshold-label" for="thVoltageLow">Voltage low (V)</label>
-          <input id="thVoltageLow" class="threshold-input" type="number" step="0.1" />
+    <section 
+      id="energySummary" 
+      class="energy-summary" 
+      style="display:none;" 
+      aria-labelledby="energy-heading"
+    >
+      <h3 id="energy-heading" class="energy-title">⚡ Energy Summary</h3>
+      <div id="energyGrid" class="energy-grid"></div>
+    </section>
 
-          <label class="threshold-label" for="thVoltageHigh">Voltage high (V)</label>
-          <input id="thVoltageHigh" class="threshold-input" type="number" step="0.1" />
-        </div>
-        <div class="threshold-row">
-          <label class="threshold-label" for="thCurrentMax">Current max (A)</label>
-          <input id="thCurrentMax" class="threshold-input" type="number" step="0.1" />
+    <section 
+      id="thresholdControls" 
+      class="threshold-controls" 
+      style="display:none;" 
+      aria-labelledby="threshold-heading"
+    >
+      <h3 id="threshold-heading" class="sr-only">Alert Thresholds</h3>
+      
+      <div class="threshold-row">
+        <label for="thVoltageLow" class="threshold-label">Voltage Low (V)</label>
+        <input 
+          id="thVoltageLow" 
+          class="threshold-input" 
+          type="number" 
+          step="0.1" 
+          min="0"
+          aria-label="Minimum voltage threshold"
+        />
+      </div>
+      
+      <div class="threshold-row">
+        <label for="thVoltageHigh" class="threshold-label">Voltage High (V)</label>
+        <input 
+          id="thVoltageHigh" 
+          class="threshold-input" 
+          type="number" 
+          step="0.1" 
+          min="0"
+          aria-label="Maximum voltage threshold"
+        />
+      </div>
+      
+      <div class="threshold-row">
+        <label for="thCurrentMax" class="threshold-label">Current Max (A)</label>
+        <input 
+          id="thCurrentMax" 
+          class="threshold-input" 
+          type="number" 
+          step="0.1" 
+          min="0"
+          aria-label="Maximum current threshold"
+        />
+      </div>
+      
+      <div class="threshold-row">
+        <label for="thSocLow" class="threshold-label">SOC Low (%)</label>
+        <input 
+          id="thSocLow" 
+          class="threshold-input" 
+          type="number" 
+          step="1" 
+          min="0" 
+          max="100"
+          aria-label="Minimum state of charge threshold"
+        />
+      </div>
+      
+      <button id="updateThresholdsBtn" class="btn" style="margin-top: 15px;">
+        Update Thresholds
+      </button>
+    </section>
 
-          <label class="threshold-label" for="thSocLow">SOC low (%)</label>
-          <input id="thSocLow" class="threshold-input" type="number" step="0.1" />
-
-          <button id="updateThresholdsBtn" class="control-btn">Update</button>
-        </div>
-      </section>
-
-      <section id="chartsSection" class="charts-section" style="display:none;" aria-label="Charts">
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">Voltage</div>
-            <div class="chart-controls">
-              <button class="chart-btn secondary" type="button" onclick="resetZoom('voltage')">Reset Zoom</button>
-              <button class="chart-btn" type="button" onclick="downloadChart('voltage')">Download</button>
-            </div>
+    <section 
+      id="chartsSection" 
+      class="charts-section" 
+      style="display:none;" 
+      aria-labelledby="charts-heading"
+    >
+      <h2 id="charts-heading" class="sr-only">Data Visualization Charts</h2>
+      
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">📊 Voltage Over Time</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('voltage')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('voltage')">📥 Download</button>
           </div>
-          <canvas id="voltageChart" aria-label="Voltage chart"></canvas>
         </div>
+        <canvas id="voltageChart" role="img" aria-label="Voltage over time chart"></canvas>
+      </div>
 
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">Current</div>
-            <div class="chart-controls">
-              <button class="chart-btn secondary" type="button" onclick="resetZoom('current')">Reset Zoom</button>
-              <button class="chart-btn" type="button" onclick="downloadChart('current')">Download</button>
-            </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">⚡ Current Over Time</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('current')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('current')">📥 Download</button>
           </div>
-          <canvas id="currentChart" aria-label="Current chart"></canvas>
         </div>
+        <canvas id="currentChart" role="img" aria-label="Current over time chart"></canvas>
+      </div>
 
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">State of Charge (SOC)</div>
-            <div class="chart-controls">
-              <button class="chart-btn secondary" type="button" onclick="resetZoom('soc')">Reset Zoom</button>
-              <button class="chart-btn" type="button" onclick="downloadChart('soc')">Download</button>
-            </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">🔋 State of Charge</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('soc')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('soc')">📥 Download</button>
           </div>
-          <canvas id="socChart" aria-label="SOC chart"></canvas>
         </div>
+        <canvas id="socChart" role="img" aria-label="State of charge chart"></canvas>
+      </div>
 
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">Power</div>
-            <div class="chart-controls">
-              <button class="chart-btn secondary" type="button" onclick="resetZoom('power')">Reset Zoom</button>
-              <button class="chart-btn" type="button" onclick="downloadChart('power')">Download</button>
-            </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">⚙️ Power Consumption</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('power')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('power')">📥 Download</button>
           </div>
-          <canvas id="powerChart" aria-label="Power chart"></canvas>
         </div>
+        <canvas id="powerChart" role="img" aria-label="Power consumption chart"></canvas>
+      </div>
 
-        <div class="chart-container">
-          <div class="chart-header">
-            <div class="chart-title">Cumulative Energy</div>
-            <div class="chart-controls">
-              <button class="chart-btn secondary" type="button" onclick="resetZoom('energy')">Reset Zoom</button>
-              <button class="chart-btn" type="button" onclick="downloadChart('energy')">Download</button>
-            </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">📈 Cumulative Energy</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('energy')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('energy')">📥 Download</button>
           </div>
-          <canvas id="energyChart" aria-label="Energy chart"></canvas>
         </div>
-      </section>
+        <canvas id="energyChart" role="img" aria-label="Cumulative energy chart"></canvas>
+      </div>
 
-      <!-- Cell Voltage & Temperature Charts -->
-      <section id="cellChartsSection" class="charts-section" style="display:none;" aria-label="Cell-level charts">
-          <div class="chart-container">
-              <div class="chart-header">
-                  <div class="chart-title">Cell Voltage Distribution</div>
-                  <div class="chart-controls">
-                      <button class="chart-btn" type="button" onclick="downloadChart('cellVoltage')">Download</button>
-                  </div>
-              </div>
-              <canvas id="cellVoltageChart" aria-label="Cell voltage distribution chart"></canvas>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">🔋 Remaining Capacity (Ah)</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('remainingAh')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('remainingAh')">📥 Download</button>
           </div>
-          
-          <div class="chart-container">
-              <div class="chart-header">
-                  <div class="chart-title">Cell Temperature Distribution</div>
-                  <div class="chart-controls">
-                      <button class="chart-btn" type="button" onclick="downloadChart('cellTemp')">Download</button>
-                  </div>
-              </div>
-              <canvas id="cellTempChart" aria-label="Cell temperature distribution chart"></canvas>
-          </div>
-          
-          <div class="chart-container">
-              <div class="chart-header">
-                  <div class="chart-title">Remaining Capacity (Ah)</div>
-                  <div class="chart-controls">
-                      <button class="chart-btn secondary" type="button" onclick="resetZoom('remainingAh')">Reset Zoom</button>
-                      <button class="chart-btn" type="button" onclick="downloadChart('remainingAh')">Download</button>
-                  </div>
-              </div>
-              <canvas id="remainingAhChart" aria-label="Remaining capacity chart"></canvas>
-          </div>
-          
-          <div class="chart-container">
-              <div class="chart-header">
-                  <div class="chart-title">FET Status</div>
-                  <div class="chart-controls">
-                      <button class="chart-btn" type="button" onclick="downloadChart('fetStatus')">Download</button>
-                  </div>
-              </div>
-              <canvas id="fetStatusChart" aria-label="FET status chart"></canvas>
-          </div>
-      </section>
+        </div>
+        <canvas id="remainingAhChart" role="img" aria-label="Remaining capacity chart"></canvas>
+      </div>
+    </section>
 
-      <footer class="export-section">
-        <div>Built with ❤️ — <a href="https://github.com/krishnavamsi333/BMS" target="_blank" rel="noopener">Project on GitHub</a></div>
-      </footer>
-    </div>
+    <section 
+      id="cellChartsSection" 
+      class="charts-section" 
+      style="display:none;" 
+      aria-labelledby="cell-charts-heading"
+    >
+      <h2 id="cell-charts-heading" class="section-heading">🔬 Cell-Level Analysis (16 Cells + 5 Sensors)</h2>
 
-    <script>
-      // Small enhancement: update file name when user picks a file via keyboard or drag
-      document.addEventListener('DOMContentLoaded', function () {
-        const input = document.getElementById('fileInput');
-        const label = document.querySelector('.file-label');
-        if (input && label) {
-          label.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              input.click();
-            }
-          });
-        }
-      });
-    </script>
-  </body>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">📊 Cell Voltage Distribution (Latest)</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="downloadChart('cellVoltage')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="cellVoltageChart" role="img" aria-label="Cell voltage distribution chart"></canvas>
+        <div class="cell-info">
+          <span class="cell-count" id="cellCount">16 cells detected</span>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">📈 Per-Cell Voltage Trends (All 16 Cells)</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('cellVoltageTrend')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('cellVoltageTrend')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="cellVoltageTrendChart" role="img" aria-label="Per-cell voltage trends chart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">⚠️ Cell Voltage Imbalance</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('cellImbalance')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('cellImbalance')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="cellImbalanceChart" role="img" aria-label="Cell imbalance chart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">🌡️ Temperature Trends (5 Sensors)</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('cellTempTrend')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('cellTempTrend')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="cellTempTrendChart" role="img" aria-label="Temperature trends chart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">🔌 FET Status</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('fetStatus')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('fetStatus')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="fetStatusChart" role="img" aria-label="FET status chart"></canvas>
+      </div>
+    </section>
+
+    <footer class="export-section">
+      <p>
+        Built with ❤️ for BMS Analysis • 
+        <a href="https://github.com/krishnavamsi333/BMS" target="_blank" rel="noopener noreferrer">
+          View on GitHub
+        </a>
+      </p>
+    </footer>
+  </div>
+
+  <style>
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    
+    .section-heading {
+      font-size: 1.5em;
+      font-weight: 600;
+      color: rgb(255, 255, 255);
+      text-align: center;
+      margin-bottom: 30px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</body>
 </html>

@@ -1,412 +1,487 @@
-// js/charts.js
+// charts.js - Enhanced with Better Cell Visualizations
+// ==========================================
+
+if (window.Chart && window.ChartZoom) {
+    Chart.register(ChartZoom);
+}
+
+// Cell voltage colors - distinct colors for 16 cells
+const CELL_COLORS = [
+    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+    '#ef4444', '#06b6d4', '#ec4899', '#84cc16',
+    '#6366f1', '#f97316', '#14b8a6', '#a855f7',
+    '#22c55e', '#eab308', '#0ea5e9', '#f43f5e'
+];
+
+// Temperature colors - 5 sensors
+const TEMP_COLORS = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981'
+];
 
 function resetZoom(chartName) {
-    if (charts[chartName]) {
-        charts[chartName].resetZoom();
-    }
+    charts[chartName]?.resetZoom();
 }
 
 function downloadChart(chartName) {
-    if (charts[chartName]) {
-        const link = document.createElement('a');
-        link.download = `bms_${chartName}_chart.png`;
-        link.href = charts[chartName].toBase64Image();
-        link.click();
-    }
+    if (!charts[chartName]) return;
+    const a = document.createElement('a');
+    a.download = `bms_${chartName}.png`;
+    a.href = charts[chartName].toBase64Image();
+    a.click();
 }
 
-function createCharts(data) {
-    // Destroy old charts
-    Object.values(charts).forEach(chart => chart.destroy());
-    charts = {};
+function getTimeValues(data) {
+    return timeMode === 'relative'
+        ? data.map(d => d.relativeTime ?? 0)
+        : data.map(d => d.timestamp ?? 0);
+}
 
-    const timeValues =
-        timeMode === 'relative'
-            ? data.map(d => d.relativeTime || 0)
-            : data.map(d => d.timestamp || d.sec || 0);
+function getTimeLabel() {
+    return timeMode === 'relative'
+        ? 'Time (seconds since start)'
+        : 'Timestamp (sec)';
+}
 
-    const timeLabel =
-        timeMode === 'relative'
-            ? 'Time (seconds since start)'
-            : 'ROS2 Timestamp (seconds)';
-
-    const commonOptions = {
+function commonLineOptions(timeLabel, yLabel, customOptions = {}) {
+    return {
         responsive: true,
         maintainAspectRatio: false,
         interaction: {
-            mode: 'nearest',
-            axis: 'x',
+            mode: 'index',
             intersect: false
         },
         elements: {
             line: {
-                tension: smoothingEnabled ? 0.4 : 0
+                tension: smoothingEnabled ? 0.35 : 0
             },
             point: {
-                radius: 0,
-                hoverRadius: 3
+                radius: 0
             }
         },
-        animation: {
-            duration: 1000,
-            easing: 'easeOutQuart'
-        },
         plugins: {
-            legend: { display: false },
+            legend: { 
+                display: true,
+                labels: {
+                    color: 'rgba(0, 0, 0, 0.9)',
+                    padding: 50,
+                    font: { size: 16 }
+                }
+            },
             tooltip: {
                 mode: 'index',
                 intersect: false,
-                callbacks: {
-                    title: function (context) {
-                        const value = context[0].parsed.x;
-                        return timeMode === 'relative'
-                            ? `Time: ${value.toFixed(1)}s`
-                            : `Timestamp: ${value}`;
-                    }
-                }
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: 'rgba(59, 130, 246, 0.5)',
+                borderWidth: 1
             },
             zoom: {
                 pan: {
                     enabled: true,
+                    modifierKey: 'ctrl',
                     mode: 'x'
                 },
                 zoom: {
-                    wheel: { enabled: true, speed: 0.1 },
+                    wheel: { enabled: true },
                     pinch: { enabled: true },
                     mode: 'x'
-                },
-                limits: {
-                    x: { min: 'original', max: 'original' }
                 }
             }
         },
         scales: {
             x: {
-                title: {
-                    display: true,
-                    text: timeLabel
-                },
-                ticks: {
-                    maxTicksLimit: 15,
-                    autoSkip: true
-                }
+                title: { display: true, text: timeLabel, color: '#000000ff' },
+                ticks: { maxTicksLimit: 15, color: 'rgba(0, 0, 0, 1)' },
+                grid: { color: 'rgba(0, 0, 0, 0.32)' }
             },
             y: {
+                title: { display: true, text: yLabel, color: '#050505ff' },
                 beginAtZero: false,
-                title: {
-                    display: true,
-                    text: 'Value'
-                }
+                ticks: { color: 'rgba(0, 0, 0, 1)' },
+                grid: { color: 'rgba(0, 0, 0, 0.32)' }
             }
-        }
+        },
+        ...customOptions
     };
-
-    // Voltage chart
-    if (data.some(d => d.voltage !== undefined)) {
-        charts.voltage = new Chart(
-            document.getElementById('voltageChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: timeValues,
-                    datasets: [
-                        {
-                            label: 'Voltage (V)',
-                            data: data.map(d => d.voltage),
-                            borderColor: CONFIG.CHART.COLORS.voltage,
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            borderWidth: 2,
-                            fill: true
-                        },
-                        {
-                            label: 'Low Threshold',
-                            data: data.map(() => thresholds.voltageLow),
-                            borderColor: CONFIG.CHART.COLORS.threshold,
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'High Threshold',
-                            data: data.map(() => thresholds.voltageHigh),
-                            borderColor: CONFIG.CHART.COLORS.warning,
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
-                    ]
-                },
-                options: commonOptions
-            }
-        );
-    }
-
-    // Current chart
-    if (data.some(d => d.current !== undefined)) {
-        charts.current = new Chart(
-            document.getElementById('currentChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: timeValues,
-                    datasets: [
-                        {
-                            label: 'Current (A)',
-                            data: data.map(d => d.current),
-                            borderColor: CONFIG.CHART.COLORS.current,
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            borderWidth: 2,
-                            fill: true
-                        },
-                        {
-                            label: 'Max Threshold',
-                            data: data.map(() => thresholds.currentMax),
-                            borderColor: CONFIG.CHART.COLORS.threshold,
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'Min Threshold',
-                            data: data.map(() => -thresholds.currentMax),
-                            borderColor: CONFIG.CHART.COLORS.threshold,
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
-                    ]
-                },
-                options: commonOptions
-            }
-        );
-    }
-
-    // SOC chart
-    if (data.some(d => d.soc !== undefined)) {
-        charts.soc = new Chart(
-            document.getElementById('socChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: timeValues,
-                    datasets: [
-                        {
-                            label: 'SOC (%)',
-                            data: data.map(d => d.soc),
-                            borderColor: CONFIG.CHART.COLORS.soc,
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 2,
-                            fill: true
-                        },
-                        {
-                            label: 'Low SOC Threshold',
-                            data: data.map(() => thresholds.socLow),
-                            borderColor: CONFIG.CHART.COLORS.threshold,
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
-                    ]
-                },
-                options: {
-                    ...commonOptions,
-                    scales: {
-                        ...commonOptions.scales,
-                        y: {
-                            ...commonOptions.scales.y,
-                            min: 0,
-                            max: 100
-                        }
-                    }
-                }
-            }
-        );
-    }
-
-    
-
-    // Power chart
-    if (data.some(d => d.power !== undefined)) {
-        charts.power = new Chart(
-            document.getElementById('powerChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: timeValues,
-                    datasets: [
-                        {
-                            label: 'Power (W)',
-                            data: data.map(d => d.power),
-                            borderColor: CONFIG.CHART.COLORS.power,
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderWidth: 2,
-                            fill: true
-                        }
-                    ]
-                },
-                options: commonOptions
-            }
-        );
-    }
-
-
-    
-    // Energy chart
-    if (data.some(d => d.cumulativeEnergyKWh !== undefined)) {
-        charts.energy = new Chart(
-            document.getElementById('energyChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: timeValues,
-                    datasets: [
-                        {
-                            label: 'Cumulative Energy (kWh)',
-                            data: data.map(d => d.cumulativeEnergyKWh || 0),
-                            borderColor: CONFIG.CHART.COLORS.energy,
-                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                            borderWidth: 2,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    ...commonOptions,
-                    scales: {
-                        ...commonOptions.scales,
-                        y: {
-                            ...commonOptions.scales.y,
-                            title: {
-                                display: true,
-                                text: 'Energy (kWh)'
-                            }
-                        }
-                    }
-                }
-            }
-        );
-    }
 }
-function createCellCharts(data) {
-    // Only create if we have cell data
-    const hasCellData = data.some(d => d.cell_voltages || d.cell_temperatures);
-    if (!hasCellData) return;
-    
-    const timeValues = timeMode === 'relative' 
-        ? data.map(d => d.relativeTime || 0)
-        : data.map(d => d.timestamp || d.sec || 0);
-    
-    // 1. Cell Voltage Distribution Chart (for last data point)
-    const lastEntry = data[data.length - 1];
-    if (lastEntry.cell_voltages) {
-        const validVoltages = lastEntry.cell_voltages.filter(v => v > 0);
-        charts.cellVoltage = new Chart(document.getElementById('cellVoltageChart'), {
-            type: 'bar',
-            data: {
-                labels: validVoltages.map((_, i) => `Cell ${i + 1}`),
-                datasets: [{
-                    label: 'Cell Voltage (V)',
-                    data: validVoltages,
-                    backgroundColor: validVoltages.map(v => 
-                        v < 3.2 ? 'rgba(239, 68, 68, 0.7)' : 
-                        v > 3.5 ? 'rgba(245, 158, 11, 0.7)' : 
-                        'rgba(16, 185, 129, 0.7)'
-                    ),
-                    borderColor: 'rgba(59, 130, 246, 0.8)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(3)} V` } }
-                },
-                scales: {
-                    y: { 
-                        title: { display: true, text: 'Voltage (V)' },
-                        beginAtZero: false 
-                    }
-                }
-            }
-        });
-    }
-    
-    // 2. Remaining Capacity Chart
-    if (data.some(d => d.remaining_ah !== undefined)) {
-        charts.remainingAh = new Chart(document.getElementById('remainingAhChart'), {
-            type: 'line',
-            data: {
-                labels: timeValues,
-                datasets: [{
-                    label: 'Remaining Capacity (Ah)',
-                    data: data.map(d => d.remaining_ah),
-                    borderColor: '#8b5cf6',
-                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                    borderWidth: 2,
-                    fill: true
-                }]
-            },
-            options: {
-                ...commonOptions,
-                scales: {
-                    ...commonOptions.scales,
-                    y: { 
-                        ...commonOptions.scales.y,
-                        title: { display: true, text: 'Capacity (Ah)' }
-                    }
-                }
-            }
-        });
-    }
-    
-    // 3. FET Status Chart
-    if (data.some(d => d.charge_fet !== undefined)) {
-        charts.fetStatus = new Chart(document.getElementById('fetStatusChart'), {
+
+// ==========================================
+// MAIN SYSTEM CHARTS
+// ==========================================
+function createCharts(data) {
+    if (!Array.isArray(data) || !data.length) return;
+
+    Object.values(charts).forEach(c => c.destroy());
+    charts = {};
+
+    const timeValues = getTimeValues(data);
+    const timeLabel = getTimeLabel();
+
+    // Voltage Chart
+    charts.voltage = new Chart(
+        document.getElementById('voltageChart'),
+        {
             type: 'line',
             data: {
                 labels: timeValues,
                 datasets: [
                     {
-                        label: 'Charge FET',
-                        data: data.map(d => d.charge_fet),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0
+                        label: 'Voltage (V)',
+                        data: data.map(d => d.voltage ?? null),
+                        borderColor: CONFIG.CHART.COLORS.voltage,
+                        backgroundColor: 'rgba(59,130,246,0.15)',
+                        fill: true
                     },
                     {
-                        label: 'Discharge FET',
-                        data: data.map(d => d.discharge_fet),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0
+                        label: 'Low Threshold',
+                        data: data.map(() => thresholds.voltageLow),
+                        borderDash: [5, 5],
+                        borderColor: CONFIG.CHART.COLORS.threshold,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'High Threshold',
+                        data: data.map(() => thresholds.voltageHigh),
+                        borderDash: [5, 5],
+                        borderColor: CONFIG.CHART.COLORS.warning,
+                        pointRadius: 0
                     }
                 ]
             },
-            options: {
-                ...commonOptions,
+            options: commonLineOptions(timeLabel, 'Voltage (V)')
+        }
+    );
+
+    // Current Chart
+    charts.current = new Chart(
+        document.getElementById('currentChart'),
+        {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Current (A)',
+                    data: data.map(d => d.current ?? null),
+                    borderColor: CONFIG.CHART.COLORS.current,
+                    backgroundColor: 'rgba(139,92,246,0.15)',
+                    fill: true
+                }]
+            },
+            options: commonLineOptions(timeLabel, 'Current (A)')
+        }
+    );
+
+    // SOC Chart
+    charts.soc = new Chart(
+        document.getElementById('socChart'),
+        {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'SOC (%)',
+                    data: data.map(d => d.soc ?? null),
+                    borderColor: CONFIG.CHART.COLORS.soc,
+                    backgroundColor: 'rgba(16,185,129,0.15)',
+                    fill: true
+                }]
+            },
+            options: commonLineOptions(timeLabel, 'SOC (%)', {
                 scales: {
-                    ...commonOptions.scales,
-                    y: {
-                        ...commonOptions.scales.y,
-                        min: -0.1,
-                        max: 1.1,
-                        ticks: { 
-                            stepSize: 1,
-                            callback: value => value === 1 ? 'ON' : value === 0 ? 'OFF' : ''
+                    x: { 
+                        title: { display: true, text: timeLabel, color: '#000000ff' },
+                        ticks: { color: 'rgba(0, 0, 0, 1)' },
+                        grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                    },
+                    y: { 
+                        min: 0, 
+                        max: 100,
+                        ticks: { color: 'rgba(0, 0, 0, 1)' },
+                        grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                    }
+                }
+            })
+        }
+    );
+
+    // Power Chart
+    charts.power = new Chart(
+        document.getElementById('powerChart'),
+        {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Power (W)',
+                    data: data.map(d => d.power ?? null),
+                    borderColor: CONFIG.CHART.COLORS.power,
+                    backgroundColor: 'rgba(245,158,11,0.15)',
+                    fill: true
+                }]
+            },
+            options: commonLineOptions(timeLabel, 'Power (W)')
+        }
+    );
+
+    // Energy Chart
+    charts.energy = new Chart(
+        document.getElementById('energyChart'),
+        {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Cumulative Energy (kWh)',
+                    data: data.map(d => d.cumulativeEnergyKWh ?? null),
+                    borderColor: CONFIG.CHART.COLORS.energy,
+                    backgroundColor: 'rgba(139,92,246,0.15)',
+                    fill: true
+                }]
+            },
+            options: commonLineOptions(timeLabel, 'Energy (kWh)')
+        }
+    );
+
+    // Remaining Capacity Chart (Ah)
+    if (data.some(d => typeof d.remaining_ah === 'number')) {
+        charts.remainingAh = new Chart(
+            document.getElementById('remainingAhChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: timeValues,
+                    datasets: [{
+                        label: 'Remaining Capacity (Ah)',
+                        data: data.map(d => d.remaining_ah ?? null),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                        fill: true
+                    }]
+                },
+                options: commonLineOptions(timeLabel, 'Capacity (Ah)')
+            }
+        );
+    }
+}
+
+// ==========================================
+// CELL-LEVEL CHARTS - ENHANCED
+// ==========================================
+function createCellCharts(data) {
+    if (!Array.isArray(data) || !data.length) return;
+
+    const timeValues = getTimeValues(data);
+    const timeLabel = getTimeLabel();
+    const last = data[data.length - 1];
+
+    // ---------- CELL VOLTAGE BAR (Latest Snapshot) ----------
+    if (Array.isArray(last.cell_voltages) && last.cell_voltages.length > 0) {
+        const cellCount = last.cell_voltages.length;
+        
+        charts.cellVoltage = new Chart(
+            document.getElementById('cellVoltageChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: last.cell_voltages.map((_, i) => `Cell ${i + 1}`),
+                    datasets: [{
+                        label: 'Cell Voltage (V)',
+                        data: last.cell_voltages,
+                        backgroundColor: CELL_COLORS.slice(0, cellCount),
+                        borderColor: CELL_COLORS.slice(0, cellCount),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y.toFixed(4)} V`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.7)' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            title: { display: true, text: 'Voltage (V)', color: '#000' },
+                            ticks: { color: 'rgba(0, 0, 0, 0.7)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
                         }
                     }
                 }
             }
-        });
+        );
+
+        // Update cell count display
+        document.getElementById('cellCount').textContent = `${cellCount} cells detected`;
     }
+
+    // ---------- PER-CELL VOLTAGE TRENDS (All 16 cells over time) ----------
+    if (data.some(d => Array.isArray(d.cell_voltages))) {
+        const maxCells = Math.max(...data.filter(d => d.cell_voltages).map(d => d.cell_voltages.length));
+        const datasets = [];
+        
+        for (let i = 0; i < maxCells; i++) {
+            datasets.push({
+                label: `Cell ${i + 1}`,
+                data: data.map(d => d.cell_voltages?.[i] ?? null),
+                borderColor: CELL_COLORS[i],
+                backgroundColor: CELL_COLORS[i] + '20',
+                pointRadius: 0,
+                borderWidth: 2
+            });
+        }
+
+        charts.cellVoltageTrend = new Chart(
+            document.getElementById('cellVoltageTrendChart'),
+            {
+                type: 'line',
+                data: { labels: timeValues, datasets },
+                options: commonLineOptions(timeLabel, 'Cell Voltage (V)', {
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                padding: 8,
+                                font: { size: 10 },
+                                boxWidth: 15
+                            }
+                        }
+                    }
+                })
+            }
+        );
+    }
+
+    // ---------- CELL TEMPERATURE TRENDS (All 5 sensors) ----------
+    if (data.some(d => Array.isArray(d.cell_temperatures))) {
+        const maxTemps = Math.max(...data.filter(d => d.cell_temperatures).map(d => d.cell_temperatures.length));
+        const datasets = [];
+        
+        for (let i = 0; i < maxTemps; i++) {
+            datasets.push({
+                label: `Temp Sensor ${i + 1}`,
+                data: data.map(d => d.cell_temperatures?.[i] ?? null),
+                borderColor: TEMP_COLORS[i],
+                backgroundColor: TEMP_COLORS[i] + '20',
+                pointRadius: 0,
+                borderWidth: 2
+            });
+        }
+
+        charts.cellTempTrend = new Chart(
+            document.getElementById('cellTempTrendChart'),
+            {
+                type: 'line',
+                data: { labels: timeValues, datasets },
+                options: commonLineOptions(timeLabel, 'Temperature (°C)', {
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                padding: 10,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                })
+            }
+        );
+    }
+
+    // ---------- CELL IMBALANCE HEATMAP ----------
+    if (data.some(d => Array.isArray(d.cell_voltages))) {
+        createCellImbalanceChart(data, timeValues, timeLabel);
+    }
+
+    // ---------- FET STATUS ----------
+    if (data.some(d => d.charge_fet !== undefined)) {
+        charts.fetStatus = new Chart(
+            document.getElementById('fetStatusChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: timeValues,
+                    datasets: [
+                        {
+                            label: 'Charge FET',
+                            data: data.map(d => d.charge_fet ?? null),
+                            stepped: true,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            fill: true
+                        },
+                        {
+                            label: 'Discharge FET',
+                            data: data.map(d => d.discharge_fet ?? null),
+                            stepped: true,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            fill: true
+                        }
+                    ]
+                },
+                options: commonLineOptions(timeLabel, 'FET State', {
+                    scales: {
+                        x: { 
+                            title: { display: true, text: timeLabel, color: '#000000ff' },
+                            ticks: { color: 'rgba(0, 0, 0, 1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                        },
+                        y: {
+                            min: -0.1,
+                            max: 1.1,
+                            ticks: {
+                                stepSize: 1,
+                                callback: v => (v === 1 ? 'ON' : 'OFF'),
+                                color: 'rgba(0, 0, 0, 1)'
+                            },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                        }
+                    }
+                })
+            }
+        );
+    }
+}
+
+// ---------- CELL IMBALANCE VISUALIZATION ----------
+function createCellImbalanceChart(data, timeValues, timeLabel) {
+    const imbalanceData = data.map(d => {
+        if (!d.cell_voltages || d.cell_voltages.length === 0) return null;
+        const valid = d.cell_voltages.filter(v => v !== null);
+        if (valid.length === 0) return null;
+        return Math.max(...valid) - Math.min(...valid);
+    });
+
+    charts.cellImbalance = new Chart(
+        document.getElementById('cellImbalanceChart'),
+        {
+            type: 'line',
+            data: {
+                labels: timeValues,
+                datasets: [{
+                    label: 'Cell Imbalance (V)',
+                    data: imbalanceData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    fill: true,
+                    borderWidth: 2
+                }]
+            },
+            options: commonLineOptions(timeLabel, 'Imbalance (V)')
+        }
+    );
 }

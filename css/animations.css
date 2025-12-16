@@ -1,0 +1,461 @@
+/* animations.css - Professional Animations */
+
+/* ==========================================
+   SMOOTH PAGE LOAD ANIMATIONS
+   ========================================== */
+
+/* Container fade-in with subtle scale */
+.container {
+    animation: containerEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes containerEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ==========================================
+   STAT CARD ANIMATIONS
+   ========================================== */
+
+.stat-card {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card.animate {
+    animation: statCardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes statCardEntrance {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    60% {
+        transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Staggered animation delays */
+.stat-card:nth-child(1) { animation-delay: 0.05s; }
+.stat-card:nth-child(2) { animation-delay: 0.1s; }
+.stat-card:nth-child(3) { animation-delay: 0.15s; }
+.stat-card:nth-child(4) { animation-delay: 0.2s; }
+.stat-card:nth-child(5) { animation-delay: 0.25s; }
+.stat-card:nth-child(6) { animation-delay: 0.3s; }
+.stat-card:nth-child(7) { animation-delay: 0.35s; }
+.stat-card:nth-child(8) { animation-delay: 0.4s; }
+.stat-card:nth-child(9) { animation-delay: 0.45s; }
+
+/* Stat card hover with smooth elevation */
+.stat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.3),
+        0 5px 15px rgba(59, 130, 246, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Value number count-up effect */
+.stat-value {
+    animation: numberPulse 0.5s ease-out;
+}
+
+@keyframes numberPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* ==========================================
+   CHART CONTAINER ANIMATIONS
+   ========================================== */
+
+.chart-container {
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.chart-container.animate {
+    animation: chartSlideIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes chartSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Staggered chart delays */
+.chart-container:nth-child(1) { animation-delay: 0.1s; }
+.chart-container:nth-child(2) { animation-delay: 0.2s; }
+.chart-container:nth-child(3) { animation-delay: 0.3s; }
+.chart-container:nth-child(4) { animation-delay: 0.4s; }
+.chart-container:nth-child(5) { animation-delay: 0.5s; }
+.chart-container:nth-child(6) { animation-delay: 0.6s; }
+
+/* Chart hover with smooth elevation */
+.chart-container:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        0 5px 15px rgba(59, 130, 246, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* ==========================================
+   BUTTON ANIMATIONS
+   ========================================== */
+
+/* File upload button ripple effect */
+.file-label::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+    opacity: 0;
+    transform: scale(0);
+    transition: transform 0.6s ease-out, opacity 0.3s ease-out;
+}
+
+.file-label:active::before {
+    transform: scale(2);
+    opacity: 1;
+    transition: transform 0s, opacity 0s;
+}
+
+/* Button press feedback */
+.btn:active,
+.control-btn:active,
+.chart-btn:active {
+    transform: translateY(1px) scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* Control button active state pulse */
+.control-btn.active {
+    animation: activePulse 2s ease-in-out infinite;
+}
+
+@keyframes activePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+}
+
+/* ==========================================
+   LOADING & PROGRESS ANIMATIONS
+   ========================================== */
+
+/* Spinner rotation */
+.spinner {
+    animation: spinnerRotate 1s linear infinite;
+}
+
+@keyframes spinnerRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Progress bar fill animation */
+.progress-fill {
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loading section pulse */
+.loading {
+    animation: loadingFade 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingFade {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* ==========================================
+   ALERT ANIMATIONS
+   ========================================== */
+
+/* Alert slide-in from top */
+.alerts,
+.error {
+    animation: alertSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes alertSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Alert pulse animation */
+.pulse {
+    animation: alertPulse 2s ease-in-out infinite;
+}
+
+@keyframes alertPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% { 
+        transform: scale(1.01);
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    }
+}
+
+/* ==========================================
+   ENERGY SUMMARY ANIMATIONS
+   ========================================== */
+
+.energy-summary {
+    animation: energyGlow 3s ease-in-out infinite;
+}
+
+@keyframes energyGlow {
+    0%, 100% {
+        box-shadow: 
+            0 8px 32px rgba(139, 92, 246, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    50% {
+        box-shadow: 
+            0 8px 32px rgba(139, 92, 246, 0.35),
+            0 0 40px rgba(139, 92, 246, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Energy item slide-in */
+.energy-item {
+    animation: energyItemSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.energy-item:nth-child(1) { animation-delay: 0.1s; }
+.energy-item:nth-child(2) { animation-delay: 0.2s; }
+.energy-item:nth-child(3) { animation-delay: 0.3s; }
+.energy-item:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes energyItemSlide {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ==========================================
+   THRESHOLD CONTROLS ANIMATIONS
+   ========================================== */
+
+.threshold-row {
+    animation: thresholdFadeIn 0.4s ease-out backwards;
+}
+
+.threshold-row:nth-child(1) { animation-delay: 0.1s; }
+.threshold-row:nth-child(2) { animation-delay: 0.15s; }
+.threshold-row:nth-child(3) { animation-delay: 0.2s; }
+.threshold-row:nth-child(4) { animation-delay: 0.25s; }
+
+@keyframes thresholdFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Input focus animation */
+.threshold-input:focus {
+    animation: inputFocusPulse 0.3s ease-out;
+}
+
+@keyframes inputFocusPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* ==========================================
+   HEADER ANIMATIONS
+   ========================================== */
+
+/* Header gradient animation */
+.header {
+    position: relative;
+    overflow: hidden;
+}
+
+.header::after {
+    animation: headerGlow 8s ease-in-out infinite;
+}
+
+@keyframes headerGlow {
+    0%, 100% {
+        opacity: 0.35;
+        transform: translate(-10%, -10%) scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translate(-5%, -5%) scale(1.1);
+    }
+}
+
+/* Title text shimmer */
+h1 {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(255, 255, 255, 1) 50%,
+        rgba(255, 255, 255, 0.9) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: titleShimmer 3s ease-in-out infinite;
+}
+
+@keyframes titleShimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* ==========================================
+   CANVAS CHART ANIMATIONS
+   ========================================== */
+
+canvas {
+    animation: canvasFadeIn 0.6s ease-out;
+}
+
+@keyframes canvasFadeIn {
+    from {
+        opacity: 0;
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        filter: blur(0);
+    }
+}
+
+/* ==========================================
+   SECTION HEADING ANIMATIONS
+   ========================================== */
+
+.section-heading {
+    animation: headingSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    position: relative;
+}
+
+.section-heading::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, 
+        transparent,
+        rgba(59, 130, 246, 0.8),
+        transparent
+    );
+    animation: underlineExpand 0.8s ease-out 0.3s forwards;
+}
+
+@keyframes headingSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes underlineExpand {
+    from { width: 0; }
+    to { width: 60px; }
+}
+
+/* ==========================================
+   MICRO-INTERACTIONS
+   ========================================== */
+
+/* Smooth transitions for all interactive elements */
+button,
+input,
+.stat-card,
+.chart-container,
+.control-btn,
+.chart-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus visible animations */
+*:focus-visible {
+    animation: focusRing 0.3s ease-out;
+}
+
+@keyframes focusRing {
+    0% {
+        outline-offset: 0px;
+        outline-color: rgba(59, 130, 246, 0);
+    }
+    100% {
+        outline-offset: 3px;
+        outline-color: rgba(59, 130, 246, 0.9);
+    }
+}
+
+/* ==========================================
+   PERFORMANCE OPTIMIZATIONS
+   ========================================== */
+
+/* Use GPU acceleration for transforms */
+.stat-card,
+.chart-container,
+.btn,
+.control-btn,
+.chart-btn {
+    will-change: transform;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

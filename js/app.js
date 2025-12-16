@@ -1,5 +1,41 @@
-// js/app.js
+// ==============================
+// GLOBAL CONSTANTS
+// ==============================
+const CELL_COUNT = 16;
+const TEMP_SENSOR_COUNT = 5;
 
+// ==============================
+// CHART COMMON OPTIONS (FIX)
+// ==============================
+const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+        mode: 'index',
+        intersect: false
+    },
+    plugins: {
+        legend: {
+            display: true
+        },
+        tooltip: {
+            enabled: true
+        }
+    },
+    scales: {
+        x: {
+            display: true,
+            title: {
+                display: true,
+                text: 'Time'
+            }
+        }
+    }
+};
+
+// ==============================
+// FILE VALIDATION
+// ==============================
 function validateFile(file) {
     if (!file) {
         throw new Error('No file selected');
@@ -7,28 +43,64 @@ function validateFile(file) {
 
     if (file.size > CONFIG.MAX_FILE_SIZE) {
         throw new Error(
-            `File too large: ${(file.size / 1024 / 1024).toFixed(
-                2
-            )}MB (max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`
+            `File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB ` +
+            `(max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB)`
         );
     }
 
     const validExtensions = ['.yaml', '.yml', '.txt'];
-    const fileExtension = file.name
-        .toLowerCase()
-        .substring(file.name.lastIndexOf('.'));
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
 
-    if (!validExtensions.includes(fileExtension)) {
-        throw new Error(
-            `Invalid file type. Please select a YAML file (${validExtensions.join(
-                ', '
-            )})`
-        );
+    if (!validExtensions.includes(ext)) {
+        throw new Error(`Invalid file type (${validExtensions.join(', ')})`);
     }
 
     return true;
 }
 
+// ==============================
+// CELL / TEMP FILTERING
+// ==============================
+function filterCellVoltages(voltages) {
+    if (!Array.isArray(voltages)) {
+        return Array(CELL_COUNT).fill(null);
+    }
+
+    return voltages
+        .slice(0, CELL_COUNT)
+        .map(v =>
+            typeof v === 'number' && v >= 2.0 && v <= 4.5 ? v : null
+        );
+}
+
+function filterCellTemperatures(temps) {
+    if (!Array.isArray(temps)) {
+        return Array(TEMP_SENSOR_COUNT).fill(null);
+    }
+
+    return temps
+        .slice(0, TEMP_SENSOR_COUNT)
+        .map(t =>
+            typeof t === 'number' && t >= -40 && t <= 120 ? t : null
+        );
+}
+
+// ==============================
+// DATA VALIDATION (PER TIMESTAMP)
+// ==============================
+function validateAndFilterData(data) {
+    return data
+        .filter(d => d && d.timestamp)
+        .map(d => ({
+            ...d,
+            cell_voltages: filterCellVoltages(d.cell_voltages),
+            cell_temperatures: filterCellTemperatures(d.cell_temperatures)
+        }));
+}
+
+// ==============================
+// FILE HANDLING
+// ==============================
 function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file) {
@@ -46,192 +118,147 @@ function processFile(file) {
         document.getElementById('progressSection').style.display = 'block';
         document.getElementById('chartsSection').style.display = 'none';
         document.getElementById('statsSection').style.display = 'none';
-        document.getElementById('errorSection').style.display = 'none';
         document.getElementById('alertsSection').style.display = 'none';
         document.getElementById('thresholdControls').style.display = 'none';
         document.getElementById('energySummary').style.display = 'none';
 
         const reader = new FileReader();
-        let processingTimeout;
-
-        processingTimeout = setTimeout(() => {
-            showError(
-                'File processing timeout. File might be too large or corrupted.'
-            );
+        const timeout = setTimeout(() => {
             reader.abort();
+            showError('File processing timeout');
         }, 30000);
 
-        reader.onprogress = function (e) {
+        reader.onprogress = e => {
             if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                updateProgress(percent, `Loading: ${percent}%`);
+                const pct = Math.round((e.loaded / e.total) * 100);
+                updateProgress(pct, `Loading ${pct}%`);
             }
         };
 
-        reader.onload = function (e) {
-            clearTimeout(processingTimeout);
-
+        reader.onload = e => {
+            clearTimeout(timeout);
             try {
-                updateProgress(50, 'Parsing YAML data...');
-                const text = e.target.result;
-                const data = parseYAML(text);
+                updateProgress(50, 'Parsing YAML...');
+                const raw = parseYAML(e.target.result);
 
-                if (data.length === 0) {
-                    throw new Error(
-                        'No valid data found in file. Please check the file format.'
-                    );
+                if (!raw || raw.length === 0) {
+                    throw new Error('No valid data in file');
                 }
 
-                updateProgress(75, 'Processing data...');
-                currentData = validateAndFilterData(data);
+                updateProgress(75, 'Filtering data...');
+                currentData = validateAndFilterData(raw);
                 calculateEnergyConsumption(currentData);
-                const smoothedData = smoothData(currentData);
 
-                updateProgress(90, 'Creating visualizations...');
-                displayStats(smoothedData);
+                const smoothed = smoothData(currentData);
+
+                updateProgress(90, 'Rendering charts...');
+                displayStats(smoothed);
                 displayEnergySummary();
-                checkAlerts(smoothedData);
-                createCharts(smoothedData);
-                createCellCharts(smoothedData); // NEW: Add cell charts
-                const hasCellData = smoothedData.some(d => d.cell_voltages || d.cell_temperatures);
-                if (hasCellData) {
+                checkAlerts(smoothed);
+                createCharts(smoothed);
+                createCellCharts(smoothed);
+
+                if (smoothed.some(d => d.cell_voltages || d.cell_temperatures)) {
                     document.getElementById('cellChartsSection').style.display = 'block';
                 }
 
-
-                updateProgress(100, 'Complete!');
+                updateProgress(100, 'Done');
 
                 setTimeout(() => {
-                    document.getElementById('loadingSection').style.display =
-                        'none';
-                    document.getElementById('progressSection').style.display =
-                        'none';
-                    document.getElementById('chartsSection').style.display =
-                        'block';
-                    document.getElementById('statsSection').style.display =
-                        'grid';
-                    document.getElementById(
-                        'thresholdControls'
-                    ).style.display = 'block';
-                    document.getElementById('energySummary').style.display =
-                        'block';
+                    document.getElementById('loadingSection').style.display = 'none';
+                    document.getElementById('progressSection').style.display = 'none';
+                    document.getElementById('chartsSection').style.display = 'block';
+                    document.getElementById('statsSection').style.display = 'grid';
+                    document.getElementById('thresholdControls').style.display = 'block';
+                    document.getElementById('energySummary').style.display = 'block';
                     animateElements();
-                }, 500);
-            } catch (error) {
-                clearTimeout(processingTimeout);
-                showError('Error processing file: ' + error.message);
+                }, 300);
+
+            } catch (err) {
+                showError('Processing error: ' + err.message);
             }
         };
 
-        reader.onerror = function () {
-            clearTimeout(processingTimeout);
-            showError(
-                'Error reading file. The file may be corrupted or inaccessible.'
-            );
-        };
-
+        reader.onerror = () => showError('File read error');
         reader.readAsText(file);
-    } catch (error) {
-        showError(error.message);
+
+    } catch (err) {
+        showError(err.message);
     }
 }
 
+// ==============================
+// UI CONTROLS
+// ==============================
 function setTimeMode(mode) {
     timeMode = mode;
-    document
-        .querySelectorAll('.control-btn')
-        .forEach(btn => btn.classList.remove('active'));
 
-    const absBtn = document.getElementById('absoluteTimeBtn');
-    const relBtn = document.getElementById('relativeTimeBtn');
+    document.querySelectorAll('.control-btn')
+        .forEach(b => b.classList.remove('active'));
+
+    const abs = document.getElementById('absoluteTimeBtn');
+    const rel = document.getElementById('relativeTimeBtn');
 
     if (mode === 'absolute') {
-        absBtn.classList.add('active');
-        absBtn.setAttribute('aria-pressed', 'true');
-        if (relBtn) relBtn.setAttribute('aria-pressed', 'false');
+        abs.classList.add('active');
+        abs.setAttribute('aria-pressed', 'true');
+        rel.setAttribute('aria-pressed', 'false');
     } else {
-        relBtn.classList.add('active');
-        relBtn.setAttribute('aria-pressed', 'true');
-        if (absBtn) absBtn.setAttribute('aria-pressed', 'false');
+        rel.classList.add('active');
+        rel.setAttribute('aria-pressed', 'true');
+        abs.setAttribute('aria-pressed', 'false');
     }
 
-    if (currentData.length > 0) {
+    if (currentData.length) {
         createCharts(currentData);
     }
 }
 
 function toggleSmoothing() {
     smoothingEnabled = !smoothingEnabled;
-    const sb = document.getElementById('smoothingBtn');
-    sb.textContent = 'Smoothing: ' + (smoothingEnabled ? 'On' : 'Off');
-    sb.setAttribute('aria-pressed', smoothingEnabled ? 'true' : 'false');
-    if (currentData.length > 0) {
-        createCharts(currentData);
-    }
+    const btn = document.getElementById('smoothingBtn');
+    btn.textContent = `Smoothing: ${smoothingEnabled ? 'On' : 'Off'}`;
+    btn.setAttribute('aria-pressed', smoothingEnabled);
+    if (currentData.length) createCharts(currentData);
 }
 
+// ==============================
+// THRESHOLDS
+// ==============================
 function updateThresholds() {
-    thresholds.voltageLow = parseFloat(
-        document.getElementById('thVoltageLow').value
-    );
-    thresholds.voltageHigh = parseFloat(
-        document.getElementById('thVoltageHigh').value
-    );
-    thresholds.currentMax = parseFloat(
-        document.getElementById('thCurrentMax').value
-    );
-    thresholds.socLow = parseFloat(
-        document.getElementById('thSocLow').value
-    );
+    thresholds.voltageLow = +document.getElementById('thVoltageLow').value;
+    thresholds.voltageHigh = +document.getElementById('thVoltageHigh').value;
+    thresholds.currentMax = +document.getElementById('thCurrentMax').value;
+    thresholds.socLow = +document.getElementById('thSocLow').value;
 
-    if (currentData.length > 0) {
+    if (currentData.length) {
         checkAlerts(currentData);
         createCharts(currentData);
     }
 }
 
 function setupDefaultThresholds() {
-    document.getElementById('thVoltageLow').value =
-        thresholds.voltageLow;
-    document.getElementById('thVoltageHigh').value =
-        thresholds.voltageHigh;
-    document.getElementById('thCurrentMax').value =
-        thresholds.currentMax;
+    document.getElementById('thVoltageLow').value = thresholds.voltageLow;
+    document.getElementById('thVoltageHigh').value = thresholds.voltageHigh;
+    document.getElementById('thCurrentMax').value = thresholds.currentMax;
     document.getElementById('thSocLow').value = thresholds.socLow;
 }
 
+// ==============================
+// INIT
+// ==============================
 function bindEvents() {
-    document
-        .getElementById('fileInput')
-        .addEventListener('change', handleFileSelect);
-    document
-        .getElementById('absoluteTimeBtn')
-        .addEventListener('click', () => setTimeMode('absolute'));
-    document
-        .getElementById('relativeTimeBtn')
-        .addEventListener('click', () => setTimeMode('relative'));
-    document
-        .getElementById('smoothingBtn')
-        .addEventListener('click', toggleSmoothing);
-    document
-        .getElementById('exportBtn')
-        .addEventListener('click', exportData);
-    document
-        .getElementById('clearBtn')
-        .addEventListener('click', clearData);
-    document
-        .getElementById('updateThresholdsBtn')
-        .addEventListener('click', updateThresholds);
-    document
-        .getElementById('exportFullBtn')
-        .addEventListener('click', exportFullData);
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+    document.getElementById('absoluteTimeBtn').addEventListener('click', () => setTimeMode('absolute'));
+    document.getElementById('relativeTimeBtn').addEventListener('click', () => setTimeMode('relative'));
+    document.getElementById('smoothingBtn').addEventListener('click', toggleSmoothing);
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
+    document.getElementById('clearBtn').addEventListener('click', clearData);
+    document.getElementById('updateThresholdsBtn').addEventListener('click', updateThresholds);
 
-    window.addEventListener('error', function (e) {
-        showError(
-            `Unexpected error: ${
-                (e.error && e.error.message) || 'Unknown error'
-            }`
-        );
+    window.addEventListener('error', e => {
+        showError(`Unexpected error: ${e.error?.message || 'Unknown'}`);
     });
 }
 

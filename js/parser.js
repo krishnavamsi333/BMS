@@ -1,150 +1,267 @@
-// js/parser.js
-// Put this file at BMS/js/parser.js (replace the old one).
-// Exposes parseYAML and validateAndFilterData on window so index.html and other scripts can call them.
+// parser.js - Enhanced YAML Parser with Fixed Cell Data Extraction
+// ==========================================
 
-// Small config object you can change at runtime:
-// - invertCurrent: set to true if the YAML uses the opposite sign convention and you want to flip it.
-window.PARSER = window.PARSER || { invertCurrent: false };
+window.PARSER = window.PARSER || { 
+    invertCurrent: false,
+    debug: false 
+};
 
-(function () {
-  'use strict';
+(function() {
+    'use strict';
 
-  function safeParseFloat(s) {
-    const v = parseFloat(s);
-    return Number.isFinite(v) ? v : undefined;
-  }
+    /**
+     * Extract number from regex match
+     */
+    function extractNumber(block, regex) {
+        const match = block.match(regex);
+        return match ? Number(match[1]) : undefined;
+    }
 
-  // parseYAML: returns array of entries { sec, nanosec, timestamp, relativeTime, voltage, current, soc, power }
-  function parseYAML(text) {
-    try {
-      const entries = [];
-      // Split on document separator '---' as used in many ROS YAML logs
-      const blocks = text.split('---').filter(b => b.trim().length > 0);
+    /**
+     * Parse cell voltages - FIXED to handle your log format
+     * Extracts exactly 16 values from cell_voltages array
+     */
+    function parseCellVoltages(block) {
+        const regex = /cell_voltages:\s*([\s\S]*?)(?:\ncell_temperatures:|$)/;
+        const match = block.match(regex);
+        
+        if (!match) return [];
+        
+        const values = match[1]
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.startsWith('-'))
+            .map(line => Number(line.substring(1).trim()))
+            .filter(v => Number.isFinite(v));
+        
+        // Take only first 16 values (actual cell voltages)
+        const cellVoltages = values.slice(0, 16);
+        
+        // Validate they're in reasonable range
+        return cellVoltages.filter(v => v >= 2.0 && v <= 4.5);
+    }
 
-      for (let block of blocks) {
-        try {
-          const entry = {};
-          // Basic regexes: allow optional + or - and decimals
-          const patterns = {
-            voltage: /voltage:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
-            current: /current:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
-            soc: /soc:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
-            power: /power:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
-            remaining_ah: /remaining_ah:\s*([+-]?\d+\.?\d*(?:[eE][+-]?\d+)?)/,
-            charge_fet: /charge_fet:\s*(\d+)/,
-            discharge_fet: /discharge_fet:\s*(\d+)/,
-            sec: /sec:\s*(\d+)/,
-            nanosec: /nanosec:\s*(\d+)/
-          };
+    /**
+     * Parse cell temperatures - FIXED to handle your log format
+     * Extracts exactly 5 values from cell_temperatures array
+     */
+    function parseCellTemperatures(block) {
+        const regex = /cell_temperatures:\s*([\s\S]*?)(?:\n---|$)/;
+        const match = block.match(regex);
+        
+        if (!match) return [];
+        
+        const values = match[1]
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.startsWith('-'))
+            .map(line => Number(line.substring(1).trim()))
+            .filter(t => Number.isFinite(t));
+        
+        // Take only first 5 values (actual temperatures)
+        const temps = values.slice(0, 5);
+        
+        // Validate they're in reasonable range (filter out bogus values like 3487)
+        return temps.filter(t => t >= -40 && t <= 120);
+    }
 
-          Object.entries(patterns).forEach(([key, pattern]) => {
-            const m = block.match(pattern);
-            if (m && m[1] !== undefined) {
-              if (key === 'sec' || key === 'nanosec') {
-                entry[key] = parseInt(m[1], 10);
-              } else {
-                entry[key] = safeParseFloat(m[1]);
-              }
+    /**
+     * Validate cell voltage
+     */
+    function isValidCellVoltage(v) {
+        return Number.isFinite(v) && v >= 2.0 && v <= 4.5;
+    }
+
+    /**
+     * Validate cell temperature
+     */
+    function isValidCellTemp(t) {
+        return Number.isFinite(t) && t >= -40 && t <= 120;
+    }
+
+    /**
+     * Parse single YAML block into entry object
+     */
+    function parseBlock(block, blockIndex) {
+        const entry = {};
+
+        // Parse timestamp components
+        entry.sec = extractNumber(block, /sec:\s*(\d+)/);
+        entry.nanosec = extractNumber(block, /nanosec:\s*(\d+)/) || 0;
+
+        // Validate required timestamp
+        if (!Number.isFinite(entry.sec)) {
+            if (window.PARSER.debug) {
+                console.warn(`Block ${blockIndex}: Missing or invalid timestamp`);
             }
-          });
-
-          // if sec exists and at least one metric is present, accept
-          if (entry.sec !== undefined && (entry.voltage !== undefined || entry.current !== undefined || entry.soc !== undefined || entry.power !== undefined)) {
-            entry.nanosec = entry.nanosec || 0;
-            entry.timestamp = entry.sec + entry.nanosec * 1e-9;
-            // Optionally invert current sign if user wants the opposite convention
-            if (entry.current !== undefined && window.PARSER.invertCurrent) {
-              entry.current = -entry.current;
-            }
-            entries.push(entry);
-          }
-        } catch (blockError) {
-          console.warn('Skipping malformed block in YAML parser:', blockError);
+            return null;
         }
-      }
 
-      if (entries.length > 0) {
-        const firstTimestamp = entries[0].timestamp;
-        entries.forEach(entry => {
-          entry.relativeTime = entry.timestamp - firstTimestamp;
+        // Calculate full timestamp
+        entry.timestamp = entry.sec + entry.nanosec * 1e-9;
+
+        // Parse main metrics
+        entry.voltage = extractNumber(block, /voltage:\s*([-\d.]+)/);
+        entry.current = extractNumber(block, /current:\s*([-\d.]+)/);
+        entry.soc = extractNumber(block, /soc:\s*([-\d.]+)/);
+        entry.power = extractNumber(block, /power:\s*([-\d.]+)/);
+        entry.remaining_ah = extractNumber(block, /remaining_ah:\s*([-\d.]+)/);
+        
+        // Parse FET status (0 or 1)
+        entry.charge_fet = extractNumber(block, /charge_fet:\s*(\d+)/) || 0;
+        entry.discharge_fet = extractNumber(block, /discharge_fet:\s*(\d+)/) || 0;
+
+        // Parse cell voltages using improved parser
+        const cellVoltages = parseCellVoltages(block);
+        if (cellVoltages.length > 0) {
+            entry.cell_voltages = cellVoltages;
+        }
+
+        // Parse cell temperatures using improved parser
+        const cellTemps = parseCellTemperatures(block);
+        if (cellTemps.length > 0) {
+            entry.cell_temperatures = cellTemps;
+        }
+
+        // Apply current inversion if enabled
+        if (window.PARSER.invertCurrent && Number.isFinite(entry.current)) {
+            entry.current = -entry.current;
+        }
+
+        // Calculate power if missing
+        if (entry.power === undefined && 
+            Number.isFinite(entry.voltage) && 
+            Number.isFinite(entry.current)) {
+            entry.power = entry.voltage * entry.current;
+        }
+
+        // Validate SOC range
+        if (Number.isFinite(entry.soc)) {
+            entry.soc = Math.max(0, Math.min(100, entry.soc));
+        }
+
+        return entry;
+    }
+
+    /**
+     * Parse entire YAML text into array of entries
+     */
+    function parseYAML(text) {
+        if (!text || typeof text !== 'string') {
+            console.error('Invalid input: text must be a non-empty string');
+            return [];
+        }
+
+        const entries = [];
+        const blocks = text
+            .split('---')
+            .map(b => b.trim())
+            .filter(Boolean);
+
+        if (blocks.length === 0) {
+            console.warn('No valid YAML blocks found in file');
+            return [];
+        }
+
+        console.info(`Parsing ${blocks.length} YAML blocks...`);
+
+        // Parse each block
+        blocks.forEach((block, index) => {
+            const entry = parseBlock(block, index);
+            if (entry) {
+                entries.push(entry);
+            }
         });
-      }
 
-      return entries;
-    } catch (error) {
-      console.error('YAML parsing failed:', error);
-      return [];
-    }
-  }
-
-  // Validate/filter data and compute power if missing.
-  function validateAndFilterData(data) {
-    if (!Array.isArray(data)) return [];
-
-    const filtered = data
-      .filter(entry => {
-        // timestamp must be valid
-        if (entry.timestamp === undefined || Number.isNaN(entry.timestamp)) return false;
-
-        // Voltage must be positive if present
-        if (entry.voltage !== undefined && (Number.isNaN(entry.voltage) || entry.voltage <= 0)) return false;
-
-        // SOC if present must be within 0-100
-        if (entry.soc !== undefined && (Number.isNaN(entry.soc) || entry.soc < 0 || entry.soc > 100)) return false;
-
-        // Current allowed to be positive or negative (we don't filter it here)
-        return true;
-      })
-      .map((entry, idx, arr) => {
-        const e = Object.assign({}, entry);
-        // Calculate power if not present: p = v * i
-        if (e.power === undefined) {
-          if (typeof e.voltage === 'number' && typeof e.current === 'number') {
-            e.power = e.voltage * e.current;
-          } else {
-            e.power = undefined;
-          }
+        if (entries.length === 0) {
+            console.error('No valid entries parsed from file');
+            return [];
         }
-        return e;
-      });
 
-    // Optionally compute cumulative energy (Wh) by trapezoidal integration over power/time and attach to each entry
-    // Energy will be in watt-seconds (J) unless converted; here we'll compute Wh for convenience.
-    let cumulativeWh = 0;
-    for (let i = 1; i < filtered.length; ++i) {
-      const prev = filtered[i - 1];
-      const cur = filtered[i];
-      if (prev.power !== undefined && cur.power !== undefined) {
-        const dt = cur.timestamp - prev.timestamp; // seconds
-        // trapezoid: average power * dt seconds -> energy in watt-seconds
-        const wattSeconds = ((prev.power + cur.power) / 2) * dt;
-        const wh = wattSeconds / 3600.0;
-        cumulativeWh += wh;
-      }
-      filtered[i].cumulativeWh = cumulativeWh;
+        // Calculate relative time from first timestamp
+        const t0 = entries[0].timestamp;
+        entries.forEach(entry => {
+            entry.relativeTime = entry.timestamp - t0;
+        });
+
+        // Sort by timestamp (defensive)
+        entries.sort((a, b) => a.timestamp - b.timestamp);
+
+        console.info(`Successfully parsed ${entries.length} entries`);
+        console.info(`Cell data: ${entries.filter(e => e.cell_voltages).length} entries with voltages`);
+        console.info(`Temp data: ${entries.filter(e => e.cell_temperatures).length} entries with temperatures`);
+        
+        // Log sample entry for debugging
+        if (window.PARSER.debug && entries.length > 0) {
+            console.debug('Sample entry:', entries[0]);
+        }
+
+        return entries;
     }
-    if (filtered.length > 0 && filtered[0].cumulativeWh === undefined) filtered[0].cumulativeWh = 0;
 
-    return filtered;
-  }
+    /**
+     * Validate and filter parsed data
+     */
+    function validateAndFilterData(data) {
+        if (!Array.isArray(data)) {
+            console.error('Data must be an array');
+            return [];
+        }
 
-  // Expose to global scope so other files / index.html can call them directly
-  window.parseYAML = parseYAML;
-  window.validateAndFilterData = validateAndFilterData;
+        const filtered = data.filter(entry => {
+            if (!Number.isFinite(entry.timestamp)) {
+                return false;
+            }
 
-  // Helpful quick test function (call from console)
-  window._parserSelfTest = function (raw) {
-    try {
-      const parsed = parseYAML(raw);
-      const validated = validateAndFilterData(parsed);
-      console.log('Parsed entries:', parsed.length, validated.length);
-      return validated;
-    } catch (e) {
-      console.error('Parser self-test error:', e);
-      return null;
+            const hasValidData = 
+                Number.isFinite(entry.voltage) ||
+                Number.isFinite(entry.current) ||
+                Number.isFinite(entry.soc) ||
+                (Array.isArray(entry.cell_voltages) && entry.cell_voltages.length > 0);
+
+            return hasValidData;
+        });
+
+        if (filtered.length < data.length) {
+            console.info(`Filtered out ${data.length - filtered.length} invalid entries`);
+        }
+
+        return filtered;
     }
-  };
 
-  // Basic info on load
-  console.info('parser.js loaded. Use window.parseYAML(text) and window.validateAndFilterData(array).');
+    /**
+     * Get statistics about parsed data
+     */
+    function getDataStats(data) {
+        if (!Array.isArray(data) || data.length === 0) {
+            return null;
+        }
+
+        const stats = {
+            totalEntries: data.length,
+            timeRange: {
+                start: data[0].timestamp,
+                end: data[data.length - 1].timestamp,
+                duration: data[data.length - 1].timestamp - data[0].timestamp
+            },
+            cellVoltageCount: data.filter(e => e.cell_voltages).length,
+            cellTempCount: data.filter(e => e.cell_temperatures).length,
+            fetDataCount: data.filter(e => e.charge_fet !== undefined).length,
+            avgCellCount: data.filter(e => e.cell_voltages).length > 0 
+                ? Math.round(data.filter(e => e.cell_voltages).reduce((sum, e) => sum + e.cell_voltages.length, 0) / data.filter(e => e.cell_voltages).length)
+                : 0,
+            avgTempCount: data.filter(e => e.cell_temperatures).length > 0
+                ? Math.round(data.filter(e => e.cell_temperatures).reduce((sum, e) => sum + e.cell_temperatures.length, 0) / data.filter(e => e.cell_temperatures).length)
+                : 0
+        };
+
+        return stats;
+    }
+
+    // Export functions
+    window.parseYAML = parseYAML;
+    window.validateAndFilterData = validateAndFilterData;
+    window.getDataStats = getDataStats;
+
+    console.info('Enhanced Parser loaded - Ready for BMS YAML logs with improved cell data extraction');
 })();
