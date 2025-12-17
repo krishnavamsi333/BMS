@@ -77,19 +77,37 @@ const CONFIG = {
     }
 };
 
+// ==========================================
 // Global state management
+// ==========================================
+
 const STATE = {
     charts: {},
     currentData: [],
     timeMode: 'absolute',
     smoothingEnabled: false,
     
+    // Existing energy tracking (UNCHANGED)
     energyData: {
         totalKWh: 0,
         netKWh: 0,
         chargedKWh: 0,
         dischargedKWh: 0,
         efficiency: 0
+    },
+
+    // ✅ NEW: Runtime & Cost tracking
+    runtimeData: {
+        seconds: 0,
+        minutes: 0,
+        hours: 0,
+
+        energyWh: 0,
+        energyKWh: 0,
+
+        unitPrice: 0,      // price per kWh
+        totalCost: 0,
+        costPerHour: 0
     },
     
     thresholds: {
@@ -102,6 +120,8 @@ const STATE = {
     reset() {
         this.charts = {};
         this.currentData = [];
+        
+        // Reset energy data
         this.energyData = {
             totalKWh: 0,
             netKWh: 0,
@@ -109,16 +129,32 @@ const STATE = {
             dischargedKWh: 0,
             efficiency: 0
         };
+
+        // ✅ Reset runtime & cost data
+        this.runtimeData = {
+            seconds: 0,
+            minutes: 0,
+            hours: 0,
+            energyWh: 0,
+            energyKWh: 0,
+            unitPrice: 0,
+            totalCost: 0,
+            costPerHour: 0
+        };
     }
 };
 
+// ==========================================
 // Make globals accessible (for compatibility)
+// ==========================================
+
 let charts = STATE.charts;
 let currentData = STATE.currentData;
 let timeMode = STATE.timeMode;
 let smoothingEnabled = STATE.smoothingEnabled;
 let energyData = STATE.energyData;
+let runtimeData = STATE.runtimeData;
 let thresholds = STATE.thresholds;
 
 // Version info
-console.info('BMS Visualizer Config v2.0 - Enhanced Edition');
+console.info('BMS Visualizer Config v2.1 - Runtime & Cost Enabled');

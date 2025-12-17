@@ -51,6 +51,19 @@ function cleanup() {
         dischargedKWh: 0,
         efficiency: 0
     };
+
+    // ==================================================
+    // ✅ ADD: reset runtime & cost data
+    // ==================================================
+    if (typeof STATE !== 'undefined' && STATE.runtimeData) {
+        STATE.runtimeData.seconds = 0;
+        STATE.runtimeData.minutes = 0;
+        STATE.runtimeData.hours = 0;
+        STATE.runtimeData.energyWh = 0;
+        STATE.runtimeData.energyKWh = 0;
+        STATE.runtimeData.totalCost = 0;
+        STATE.runtimeData.costPerHour = 0;
+    }
 }
 
 function clearData() {
@@ -65,7 +78,12 @@ function clearData() {
         'errorSection',
         'energySummary',
         'progressSection',
-        'loadingSection'
+        'loadingSection',
+
+        // ==================================================
+        // ✅ ADD: hide runtime & cost panel
+        // ==================================================
+        'runtimeCostSummary'
     ];
 
     idsToHide.forEach(id => {
@@ -119,7 +137,15 @@ function exportData() {
             'current',
             'soc',
             'power',
-            'cumulativeEnergyKWh'
+            'cumulativeEnergyKWh',
+            'runtime_seconds',
+            'runtime_minutes',
+            'runtime_hours',
+            'energy_Wh',
+            'energy_kWh',
+            'unit_price',
+            'total_cost',
+            'cost_per_hour'
         ];
 
         const rows = currentData.map(entry => {
@@ -127,6 +153,20 @@ function exportData() {
             fields.forEach(f => {
                 row[f] = entry[f] ?? '';
             });
+            
+            // =====================================
+            // ✅ Add runtime & cost values (summary)
+            // =====================================
+            if (STATE && STATE.runtimeData) {
+                row.runtime_seconds = STATE.runtimeData.seconds;
+                row.runtime_minutes = STATE.runtimeData.minutes;
+                row.runtime_hours   = STATE.runtimeData.hours;
+                row.energy_Wh       = STATE.runtimeData.energyWh;
+                row.energy_kWh      = STATE.runtimeData.energyKWh;
+                row.unit_price      = STATE.runtimeData.unitPrice;
+                row.total_cost      = STATE.runtimeData.totalCost;
+                row.cost_per_hour   = STATE.runtimeData.costPerHour;
+            }
             return row;
         });
 

@@ -390,7 +390,7 @@ function createCellCharts(data) {
                             display: true,
                             position: 'top',
                             labels: {
-                                color: 'rgba(255, 255, 255, 0.9)',
+                                color: 'rgba(0, 0, 0, 1)',
                                 padding: 10,
                                 font: { size: 11 }
                             }
@@ -485,3 +485,46 @@ function createCellImbalanceChart(data, timeValues, timeLabel) {
         }
     );
 }
+
+/* ============================================================
+ * Hourly Cost Chart (ADD ONLY)
+ * ============================================================
+ */
+
+function createHourlyCostChart() {
+    const ctx = document.getElementById('hourlyCostChart');
+    if (!ctx || !STATE.runtimeData?.hourlyBreakdown?.length) return;
+
+    const data = STATE.runtimeData.hourlyBreakdown;
+
+    const labels = data.map(d => `Hour ${d.hour}`);
+    const costs = data.map(d => d.cost);
+
+    if (charts.hourlyCost) {
+        charts.hourlyCost.destroy();
+    }
+
+    charts.hourlyCost = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Cost per Hour',
+                data: costs
+            }]
+        },
+        options: {
+            ...commonOptions,
+            scales: {
+                x: {
+                    title: { display: true, text: 'Hour' }
+                },
+                y: {
+                    title: { display: true, text: 'Cost' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+window.createHourlyCostChart = createHourlyCostChart;

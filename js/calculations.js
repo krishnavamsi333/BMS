@@ -389,5 +389,170 @@ function displayStats(data) {
         </div>
     `;
 }
+/* ============================================================
+ * Runtime + Cost (ADD ONLY)
+ * ============================================================
+ */
+
+function calculateRuntimeAndCost(data) {
+    if (!Array.isArray(data) || data.length < 2) return;
+
+    let totalSeconds = 0;
+    let energyWh = 0;
+
+    for (let i = 1; i < data.length; i++) {
+        const prev = data[i - 1];
+        const curr = data[i];
+
+        if (!Number.isFinite(prev.relativeTime) ||
+            !Number.isFinite(curr.relativeTime)) continue;
+
+        const dt = curr.relativeTime - prev.relativeTime;
+        if (dt <= 0) continue;
+
+        totalSeconds += dt;
+
+        let power = curr.power;
+        if (!Number.isFinite(power) &&
+            Number.isFinite(curr.voltage) &&
+            Number.isFinite(curr.current)) {
+            power = curr.voltage * curr.current;
+        }
+
+        if (Number.isFinite(power)) {
+            energyWh += power * dt / 3600;
+        }
+    }
+
+    STATE.runtimeData.seconds = totalSeconds;
+    STATE.runtimeData.minutes = totalSeconds / 60;
+    STATE.runtimeData.hours = totalSeconds / 3600;
+
+    STATE.runtimeData.energyWh = energyWh;
+    STATE.runtimeData.energyKWh = energyWh / 1000;
+    STATE.runtimeData.hourlyBreakdown = calculateHourlyCostBreakdown(data);
+
+
+    calculateCost();
+}
+
+function calculateCost() {
+    const rd = STATE.runtimeData;
+    rd.totalCost = Math.abs(rd.energyKWh) * rd.unitPrice;
+    rd.costPerHour = rd.hours > 0 ? rd.totalCost / rd.hours : 0;
+}
+
+function updateUnitPrice(price) {
+    const v = Number(price);
+    if (!Number.isFinite(v) || v < 0) return;
+
+    STATE.runtimeData.unitPrice = v;
+    calculateCost();
+    displayRuntimeAndCost();
+}
+
+function displayRuntimeAndCost() {
+    const panel = document.getElementById('runtimeCostSummary');
+    if (!panel) return;
+
+    const r = STATE.runtimeData;
+    panel.style.display = 'block';
+    panel.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-label">Runtime</div>
+            <div class="stat-value">
+                ${r.seconds.toFixed(0)} s<br>
+                ${r.minutes.toFixed(2)} min<br>
+                ${r.hours.toFixed(3)} h
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Energy</div>
+            <div class="stat-value">
+                ${r.energyWh.toFixed(2)} Wh<br>
+                ${r.energyKWh.toFixed(4)} kWh
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Cost</div>
+            <div class="stat-value">
+                ${r.totalCost.toFixed(2)}<br>
+                ${r.costPerHour.toFixed(2)} / hour
+            </div>
+        </div>
+    `;
+}
+// Ensure functions are globally accessible
+window.displayStats = displayStats;
+window.calculateEnergyConsumption = calculateEnergyConsumption;
+window.displayEnergySummary = displayEnergySummary;
+window.smoothData = smoothData;
+window.checkAlerts = checkAlerts;
+
 
 console.info('Calculations module loaded');
+
+/* ============================================================
+ * Per-Hour Cost Breakdown (ADD ONLY)
+ * ============================================================
+ */
+
+function calculateHourlyCostBreakdown(data) {
+    if (!Array.isArray(data) || data.length < 2) return [];
+
+    const hourly = {}; // hourIndex -> energyWh
+
+    for (let i = 1; i < data.length; i++) {
+        const prev = data[i - 1];
+        const curr = data[i];
+
+        if (!Number.isFinite(prev.relativeTime) ||
+            !Number.isFinite(curr.relativeTime)) continue;
+
+        const dt = curr.relativeTime - prev.relativeTime;
+        if (dt <= 0) continue;
+
+        let power = curr.power;
+        if (!Number.isFinite(power) &&
+            Number.isFinite(curr.voltage) &&
+            Number.isFinite(curr.current)) {
+            power = curr.voltage * curr.current;
+        }
+
+        if (!Number.isFinite(power)) continue;
+
+        const hourIndex = Math.floor(prev.relativeTime / 3600);
+        const energyWh = power * dt / 3600;
+
+        hourly[hourIndex] = (hourly[hourIndex] || 0) + energyWh;
+    }
+
+    // Convert to cost using unit price
+    const unitPrice = STATE.runtimeData.unitPrice || 0;
+
+    return Object.entries(hourly).map(([hour, wh]) => ({
+        hour: Number(hour),
+        energyWh: wh,
+        energyKWh: wh / 1000,
+        cost: Math.abs(wh / 1000) * unitPrice
+    }));
+}
+window.calculateHourlyCostBreakdown = calculateHourlyCostBreakdown;
+/* ============================================================
+ * Tariff Presets (ADD ONLY)
+ * ============================================================
+ */
+
+function setTariff(price) {
+    updateUnitPrice(price);
+
+    if (typeof createHourlyCostChart === 'function') {
+        createHourlyCostChart();
+    }
+
+
+    const tariffPanel = document.getElementById('tariffPresets');
+    if (tariffPanel) tariffPanel.style.display = 'block';
+}
+window.setTariff = setTariff;
+

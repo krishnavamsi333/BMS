@@ -211,6 +211,21 @@
           aria-label="Minimum state of charge threshold"
         />
       </div>
+
+
+      <div id="tariffPresets" class="threshold-controls" style="display:none;">
+        <h3 class="energy-title">💰 Tariff Presets</h3>
+
+        <div class="controls">
+          <button class="control-btn" onclick="setTariff(6)">₹6 / kWh</button>
+          <button class="control-btn" onclick="setTariff(8)">₹8 / kWh</button>
+          <button class="control-btn" onclick="setTariff(12)">₹12 / kWh</button>
+
+          <button class="control-btn" onclick="setTariff(0.12)">$0.12 / kWh</button>
+          <button class="control-btn" onclick="setTariff(0.20)">€0.20 / kWh</button>
+        </div>
+      </div>
+
       
       <button id="updateThresholdsBtn" class="btn" style="margin-top: 15px;">
         Update Thresholds
@@ -279,6 +294,19 @@
         </div>
         <canvas id="energyChart" role="img" aria-label="Cumulative energy chart"></canvas>
       </div>
+
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">💰 Hourly Cost Breakdown</h3>
+          <div class="chart-controls">
+            <button class="chart-btn secondary" onclick="resetZoom('hourlyCost')">🔍 Reset Zoom</button>
+            <button class="chart-btn secondary" onclick="downloadChart('hourlyCost')">📥 Download</button>
+          </div>
+        </div>
+        <canvas id="hourlyCostChart" role="img" aria-label="Hourly cost chart"></canvas>
+      </div>
+      
+
 
       <div class="chart-container">
         <div class="chart-header">

@@ -121,6 +121,10 @@ function processFile(file) {
         document.getElementById('alertsSection').style.display = 'none';
         document.getElementById('thresholdControls').style.display = 'none';
         document.getElementById('energySummary').style.display = 'none';
+        
+        const tariffPanel = document.getElementById('tariffPresets');
+        if (tariffPanel) tariffPanel.style.display = 'block';
+
 
         const reader = new FileReader();
         const timeout = setTimeout(() => {
@@ -157,6 +161,8 @@ function processFile(file) {
                 checkAlerts(smoothed);
                 createCharts(smoothed);
                 createCellCharts(smoothed);
+                createHourlyCostChart();
+
 
                 if (smoothed.some(d => d.cell_voltages || d.cell_temperatures)) {
                     document.getElementById('cellChartsSection').style.display = 'block';
