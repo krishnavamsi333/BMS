@@ -18,6 +18,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-svg@1.0.3/dist/chartjs-plugin-svg.min.js"></script>
+
 
   <script src="js/config.js" defer></script>
   <script src="js/utils.js" defer></script>
@@ -155,44 +157,34 @@
       <div id="energyGrid" class="energy-grid"></div>
     </section>
 
-    <!-- Runtime & Cost Summary Section -->
+    <!-- ✅ Energy Cost Calculator Section -->
     <section 
-      id="runtimeCostSummary" 
-      class="stats" 
-      style="display:none;" 
-      aria-labelledby="runtime-heading"
-    >
-      <h3 id="runtime-heading" class="sr-only">Runtime & Cost Summary</h3>
-    </section>
-
-    <!-- ✅ IMPROVED: Interactive Tariff Section -->
-    <section 
-      id="tariffPresets" 
-      class="threshold-controls" 
+      id="costCalculator" 
+      class="energy-summary" 
       style="display:none;"
-      aria-labelledby="tariff-heading"
+      aria-labelledby="cost-heading"
     >
-      <h3 id="tariff-heading" class="energy-title">💰 Energy Cost Calculator</h3>
+      <h3 id="cost-heading" class="energy-title">💰 Energy Cost Calculator</h3>
 
-      <!-- Quick Preset Buttons -->
+      <!-- Tariff Preset Buttons -->
       <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: rgba(255,255,255,0.9);">
-          Quick Presets:
+        <label style="display: block; margin-bottom: 12px; font-weight: 600; color: rgba(255,255,255,0.95); font-size: 0.95em;">
+          Quick Presets (per kWh):
         </label>
-        <div class="controls" style="gap: 8px;">
-          <button class="control-btn" onclick="setTariff(6)" title="Indian Tariff ₹6">₹6</button>
-          <button class="control-btn" onclick="setTariff(8)" title="Indian Tariff ₹8">₹8</button>
-          <button class="control-btn" onclick="setTariff(12)" title="Indian Tariff ₹12">₹12</button>
-          <button class="control-btn" onclick="setTariff(0.12)" title="US Tariff $0.12">$0.12</button>
-          <button class="control-btn" onclick="setTariff(0.20)" title="EU Tariff €0.20">€0.20</button>
-          <button class="control-btn" onclick="setTariff(0.30)" title="UK Tariff £0.30">£0.30</button>
+        <div class="controls" style="gap: 10px; justify-content: center;">
+          <button class="chart-btn" onclick="setTariff(6)" title="Indian Tariff ₹6/kWh">₹6</button>
+          <button class="chart-btn" onclick="setTariff(8)" title="Indian Tariff ₹8/kWh">₹8</button>
+          <button class="chart-btn" onclick="setTariff(12)" title="Indian Tariff ₹12/kWh">₹12</button>
+          <button class="chart-btn secondary" onclick="setTariff(0.12)" title="US Tariff $0.12/kWh">$0.12</button>
+          <button class="chart-btn secondary" onclick="setTariff(0.20)" title="EU Tariff €0.20/kWh">€0.20</button>
+          <button class="chart-btn secondary" onclick="setTariff(0.30)" title="UK Tariff £0.30/kWh">£0.30</button>
         </div>
       </div>
 
       <!-- Custom Input Field -->
-      <div class="threshold-row" style="align-items: center; gap: 10px;">
-        <label for="customTariffInput" class="threshold-label" style="min-width: 150px;">
-          Custom Rate (per kWh):
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+        <label for="customTariffInput" style="font-weight: 500; color: rgba(255,255,255,0.9);">
+          Custom Rate:
         </label>
         <input 
           id="customTariffInput" 
@@ -200,24 +192,23 @@
           type="number" 
           step="0.01" 
           min="0"
-          placeholder="Enter cost"
+          placeholder="0.00"
           aria-label="Custom tariff rate per kWh"
-          style="width: 150px;"
+          style="width: 140px; text-align: center; font-size: 1em;"
         />
         <button 
           id="applyCustomTariffBtn" 
-          class="btn" 
+          class="chart-btn" 
           onclick="applyCustomTariff()"
           title="Apply custom tariff rate"
         >
-          Apply Custom Rate
+          ✓ Apply
         </button>
       </div>
 
-      <!-- Current Rate Display -->
-      <div style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.15); border-radius: 8px; text-align: center;">
-        <span style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Current Rate:</span>
-        <span id="currentTariffDisplay" style="color: #fff; font-weight: 700; font-size: 1.2em; margin-left: 8px;">0.00 / kWh</span>
+      <!-- Cost Summary Cards -->
+      <div id="costSummaryGrid" class="energy-grid">
+        <!-- Will be populated by displayCostSummary() -->
       </div>
     </section>
 
@@ -296,7 +287,7 @@
           <h3 class="chart-title">📊 Voltage Over Time</h3>
           <div class="chart-controls">
             <button class="chart-btn secondary" onclick="resetZoom('voltage')">🔍 Reset Zoom</button>
-            <button class="chart-btn secondary" onclick="downloadChart('voltage')">📥 Download</button>
+            <button class="chart-btn secondary" onclick="downloadChart('voltage')">🖼 PNG</button>
           </div>
         </div>
         <canvas id="voltageChart" role="img" aria-label="Voltage over time chart"></canvas>
@@ -344,20 +335,6 @@
           </div>
         </div>
         <canvas id="energyChart" role="img" aria-label="Cumulative energy chart"></canvas>
-      </div>
-
-      <div class="chart-container">
-        <div class="chart-header">
-          <h3 class="chart-title">💰 Hourly Cost Breakdown</h3>
-          <div class="chart-controls">
-            <button class="chart-btn secondary" onclick="resetZoom('hourlyCost')">🔍 Reset Zoom</button>
-            <button class="chart-btn secondary" onclick="downloadChart('hourlyCost')">📥 Download</button>
-          </div>
-        </div>
-        <div class="zoom-info" style="margin-bottom: 10px;">
-          💡 Tip: Set a tariff rate above to see cost calculations
-        </div>
-        <canvas id="hourlyCostChart" role="img" aria-label="Hourly cost chart"></canvas>
       </div>
 
       <div class="chart-container">

@@ -55,7 +55,40 @@ Designed for engineers who want insights **without writing scripts**.
 
 ## 📸 Screenshots
 
-*(Add screenshots here later for better visibility)*
+<p align="center">
+  <img src="assets/bms_voltage.png" alt="BMS Voltage Diagram" width="600">
+</p>
+
+<p align="center">
+  <img src="assets/bms_current.png" alt="BMS Voltage Diagram" width="600">
+</p>
+
+<p align="center">
+  <img src="assets/bms_soc.png" alt="BMS Voltage Diagram" width="600">
+</p>
+
+<p align="center">
+  <img src="assets/bms_power.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_energy.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_remainingAh.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_cellVoltage.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_cellVoltageTrend.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_cellTempTrend.png" alt="BMS Voltage Diagram" width="600">
+</p>
+<p align="center">
+  <img src="assets/bms_fetStatus.png" alt="BMS Voltage Diagram" width="600">
+</p>
+
 
 ---
 
