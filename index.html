@@ -155,6 +155,72 @@
       <div id="energyGrid" class="energy-grid"></div>
     </section>
 
+    <!-- Runtime & Cost Summary Section -->
+    <section 
+      id="runtimeCostSummary" 
+      class="stats" 
+      style="display:none;" 
+      aria-labelledby="runtime-heading"
+    >
+      <h3 id="runtime-heading" class="sr-only">Runtime & Cost Summary</h3>
+    </section>
+
+    <!-- ✅ IMPROVED: Interactive Tariff Section -->
+    <section 
+      id="tariffPresets" 
+      class="threshold-controls" 
+      style="display:none;"
+      aria-labelledby="tariff-heading"
+    >
+      <h3 id="tariff-heading" class="energy-title">💰 Energy Cost Calculator</h3>
+
+      <!-- Quick Preset Buttons -->
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: rgba(255,255,255,0.9);">
+          Quick Presets:
+        </label>
+        <div class="controls" style="gap: 8px;">
+          <button class="control-btn" onclick="setTariff(6)" title="Indian Tariff ₹6">₹6</button>
+          <button class="control-btn" onclick="setTariff(8)" title="Indian Tariff ₹8">₹8</button>
+          <button class="control-btn" onclick="setTariff(12)" title="Indian Tariff ₹12">₹12</button>
+          <button class="control-btn" onclick="setTariff(0.12)" title="US Tariff $0.12">$0.12</button>
+          <button class="control-btn" onclick="setTariff(0.20)" title="EU Tariff €0.20">€0.20</button>
+          <button class="control-btn" onclick="setTariff(0.30)" title="UK Tariff £0.30">£0.30</button>
+        </div>
+      </div>
+
+      <!-- Custom Input Field -->
+      <div class="threshold-row" style="align-items: center; gap: 10px;">
+        <label for="customTariffInput" class="threshold-label" style="min-width: 150px;">
+          Custom Rate (per kWh):
+        </label>
+        <input 
+          id="customTariffInput" 
+          class="threshold-input" 
+          type="number" 
+          step="0.01" 
+          min="0"
+          placeholder="Enter cost"
+          aria-label="Custom tariff rate per kWh"
+          style="width: 150px;"
+        />
+        <button 
+          id="applyCustomTariffBtn" 
+          class="btn" 
+          onclick="applyCustomTariff()"
+          title="Apply custom tariff rate"
+        >
+          Apply Custom Rate
+        </button>
+      </div>
+
+      <!-- Current Rate Display -->
+      <div style="margin-top: 15px; padding: 12px; background: rgba(59, 130, 246, 0.15); border-radius: 8px; text-align: center;">
+        <span style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Current Rate:</span>
+        <span id="currentTariffDisplay" style="color: #fff; font-weight: 700; font-size: 1.2em; margin-left: 8px;">0.00 / kWh</span>
+      </div>
+    </section>
+
     <section 
       id="thresholdControls" 
       class="threshold-controls" 
@@ -212,21 +278,6 @@
         />
       </div>
 
-
-      <div id="tariffPresets" class="threshold-controls" style="display:none;">
-        <h3 class="energy-title">💰 Tariff Presets</h3>
-
-        <div class="controls">
-          <button class="control-btn" onclick="setTariff(6)">₹6 / kWh</button>
-          <button class="control-btn" onclick="setTariff(8)">₹8 / kWh</button>
-          <button class="control-btn" onclick="setTariff(12)">₹12 / kWh</button>
-
-          <button class="control-btn" onclick="setTariff(0.12)">$0.12 / kWh</button>
-          <button class="control-btn" onclick="setTariff(0.20)">€0.20 / kWh</button>
-        </div>
-      </div>
-
-      
       <button id="updateThresholdsBtn" class="btn" style="margin-top: 15px;">
         Update Thresholds
       </button>
@@ -303,10 +354,11 @@
             <button class="chart-btn secondary" onclick="downloadChart('hourlyCost')">📥 Download</button>
           </div>
         </div>
+        <div class="zoom-info" style="margin-bottom: 10px;">
+          💡 Tip: Set a tariff rate above to see cost calculations
+        </div>
         <canvas id="hourlyCostChart" role="img" aria-label="Hourly cost chart"></canvas>
       </div>
-      
-
 
       <div class="chart-container">
         <div class="chart-header">
@@ -349,6 +401,9 @@
             <button class="chart-btn secondary" onclick="downloadChart('cellVoltageTrend')">📥 Download</button>
           </div>
         </div>
+        <div class="zoom-info">
+          🖱️ Scroll to zoom • Ctrl+Drag to pan
+        </div>
         <canvas id="cellVoltageTrendChart" role="img" aria-label="Per-cell voltage trends chart"></canvas>
       </div>
 
@@ -370,6 +425,9 @@
             <button class="chart-btn secondary" onclick="resetZoom('cellTempTrend')">🔍 Reset Zoom</button>
             <button class="chart-btn secondary" onclick="downloadChart('cellTempTrend')">📥 Download</button>
           </div>
+        </div>
+        <div class="zoom-info">
+          🖱️ Scroll to zoom • Ctrl+Drag to pan
         </div>
         <canvas id="cellTempTrendChart" role="img" aria-label="Temperature trends chart"></canvas>
       </div>

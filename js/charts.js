@@ -1,4 +1,4 @@
-// charts.js - Enhanced with Better Cell Visualizations
+// charts.js - Fixed Zoom & Hourly Cost Chart
 // ==========================================
 
 if (window.Chart && window.ChartZoom) {
@@ -19,11 +19,19 @@ const TEMP_COLORS = [
 ];
 
 function resetZoom(chartName) {
-    charts[chartName]?.resetZoom();
+    if (charts[chartName]) {
+        charts[chartName].resetZoom();
+        console.info(`Reset zoom for ${chartName}`);
+    } else {
+        console.warn(`Chart ${chartName} not found`);
+    }
 }
 
 function downloadChart(chartName) {
-    if (!charts[chartName]) return;
+    if (!charts[chartName]) {
+        console.warn(`Chart ${chartName} not found`);
+        return;
+    }
     const a = document.createElement('a');
     a.download = `bms_${chartName}.png`;
     a.href = charts[chartName].toBase64Image();
@@ -63,8 +71,8 @@ function commonLineOptions(timeLabel, yLabel, customOptions = {}) {
                 display: true,
                 labels: {
                     color: 'rgba(0, 0, 0, 0.9)',
-                    padding: 50,
-                    font: { size: 16 }
+                    padding: 10,
+                    font: { size: 12 }
                 }
             },
             tooltip: {
@@ -112,7 +120,12 @@ function commonLineOptions(timeLabel, yLabel, customOptions = {}) {
 function createCharts(data) {
     if (!Array.isArray(data) || !data.length) return;
 
-    Object.values(charts).forEach(c => c.destroy());
+    // Destroy existing charts
+    Object.keys(charts).forEach(key => {
+        if (charts[key] && typeof charts[key].destroy === 'function') {
+            charts[key].destroy();
+        }
+    });
     charts = {};
 
     const timeValues = getTimeValues(data);
@@ -263,10 +276,12 @@ function createCharts(data) {
             }
         );
     }
+
+    console.info('Main charts created successfully');
 }
 
 // ==========================================
-// CELL-LEVEL CHARTS - ENHANCED
+// CELL-LEVEL CHARTS - FIXED ZOOM
 // ==========================================
 function createCellCharts(data) {
     if (!Array.isArray(data) || !data.length) return;
@@ -279,6 +294,7 @@ function createCellCharts(data) {
     if (Array.isArray(last.cell_voltages) && last.cell_voltages.length > 0) {
         const cellCount = last.cell_voltages.length;
         
+        if (charts.cellVoltage) charts.cellVoltage.destroy();
         charts.cellVoltage = new Chart(
             document.getElementById('cellVoltageChart'),
             {
@@ -320,11 +336,10 @@ function createCellCharts(data) {
             }
         );
 
-        // Update cell count display
         document.getElementById('cellCount').textContent = `${cellCount} cells detected`;
     }
 
-    // ---------- PER-CELL VOLTAGE TRENDS (All 16 cells over time) ----------
+    // ---------- PER-CELL VOLTAGE TRENDS - FIXED ZOOM ----------
     if (data.some(d => Array.isArray(d.cell_voltages))) {
         const maxCells = Math.max(...data.filter(d => d.cell_voltages).map(d => d.cell_voltages.length));
         const datasets = [];
@@ -340,30 +355,70 @@ function createCellCharts(data) {
             });
         }
 
+        if (charts.cellVoltageTrend) charts.cellVoltageTrend.destroy();
         charts.cellVoltageTrend = new Chart(
             document.getElementById('cellVoltageTrendChart'),
             {
                 type: 'line',
                 data: { labels: timeValues, datasets },
-                options: commonLineOptions(timeLabel, 'Cell Voltage (V)', {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    elements: {
+                        line: { tension: smoothingEnabled ? 0.35 : 0 },
+                        point: { radius: 0 }
+                    },
                     plugins: {
                         legend: {
                             display: true,
                             position: 'right',
                             labels: {
-                                color: 'rgba(255, 255, 255, 0.9)',
+                                color: 'rgba(0, 0, 0, 0.9)',
                                 padding: 8,
                                 font: { size: 10 },
                                 boxWidth: 15
                             }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)'
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                modifierKey: 'ctrl',
+                                mode: 'x'
+                            },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: timeLabel, color: '#000' },
+                            ticks: { maxTicksLimit: 15, color: 'rgba(0, 0, 0, 0.9)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Voltage (V)', color: '#000' },
+                            ticks: { color: 'rgba(0, 0, 0, 0.9)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
                         }
                     }
-                })
+                }
             }
         );
     }
 
-    // ---------- CELL TEMPERATURE TRENDS (All 5 sensors) ----------
+    // ---------- CELL TEMPERATURE TRENDS - FIXED ZOOM ----------
     if (data.some(d => Array.isArray(d.cell_temperatures))) {
         const maxTemps = Math.max(...data.filter(d => d.cell_temperatures).map(d => d.cell_temperatures.length));
         const datasets = [];
@@ -379,12 +434,23 @@ function createCellCharts(data) {
             });
         }
 
+        if (charts.cellTempTrend) charts.cellTempTrend.destroy();
         charts.cellTempTrend = new Chart(
             document.getElementById('cellTempTrendChart'),
             {
                 type: 'line',
                 data: { labels: timeValues, datasets },
-                options: commonLineOptions(timeLabel, 'Temperature (°C)', {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    elements: {
+                        line: { tension: smoothingEnabled ? 0.35 : 0 },
+                        point: { radius: 0 }
+                    },
                     plugins: {
                         legend: {
                             display: true,
@@ -394,20 +460,50 @@ function createCellCharts(data) {
                                 padding: 10,
                                 font: { size: 11 }
                             }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)'
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                modifierKey: 'ctrl',
+                                mode: 'x'
+                            },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: timeLabel, color: '#000' },
+                            ticks: { maxTicksLimit: 15, color: 'rgba(0, 0, 0, 1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Temperature (°C)', color: '#000' },
+                            ticks: { color: 'rgba(0, 0, 0, 1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.32)' }
                         }
                     }
-                })
+                }
             }
         );
     }
 
-    // ---------- CELL IMBALANCE HEATMAP ----------
+    // ---------- CELL IMBALANCE ----------
     if (data.some(d => Array.isArray(d.cell_voltages))) {
         createCellImbalanceChart(data, timeValues, timeLabel);
     }
 
     // ---------- FET STATUS ----------
     if (data.some(d => d.charge_fet !== undefined)) {
+        if (charts.fetStatus) charts.fetStatus.destroy();
         charts.fetStatus = new Chart(
             document.getElementById('fetStatusChart'),
             {
@@ -455,6 +551,8 @@ function createCellCharts(data) {
             }
         );
     }
+
+    console.info('Cell charts created successfully with zoom enabled');
 }
 
 // ---------- CELL IMBALANCE VISUALIZATION ----------
@@ -466,6 +564,7 @@ function createCellImbalanceChart(data, timeValues, timeLabel) {
         return Math.max(...valid) - Math.min(...valid);
     });
 
+    if (charts.cellImbalance) charts.cellImbalance.destroy();
     charts.cellImbalance = new Chart(
         document.getElementById('cellImbalanceChart'),
         {
@@ -487,18 +586,50 @@ function createCellImbalanceChart(data, timeValues, timeLabel) {
 }
 
 /* ============================================================
- * Hourly Cost Chart (ADD ONLY)
+ * Hourly Cost Chart - FIXED
  * ============================================================
  */
 
 function createHourlyCostChart() {
     const ctx = document.getElementById('hourlyCostChart');
-    if (!ctx || !STATE.runtimeData?.hourlyBreakdown?.length) return;
+    if (!ctx) {
+        console.warn('Hourly cost chart canvas not found');
+        return;
+    }
+
+    // Check if we have breakdown data
+    if (!STATE.runtimeData?.hourlyBreakdown?.length) {
+        console.warn('No hourly breakdown data available');
+        
+        // Show placeholder message
+        if (charts.hourlyCost) charts.hourlyCost.destroy();
+        
+        charts.hourlyCost = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['No Data'],
+                datasets: [{
+                    label: 'Cost per Hour',
+                    data: [0],
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+        return;
+    }
 
     const data = STATE.runtimeData.hourlyBreakdown;
-
     const labels = data.map(d => `Hour ${d.hour}`);
     const costs = data.map(d => d.cost);
+    const energies = data.map(d => d.energyKWh);
 
     if (charts.hourlyCost) {
         charts.hourlyCost.destroy();
@@ -509,22 +640,64 @@ function createHourlyCostChart() {
         data: {
             labels,
             datasets: [{
-                label: 'Cost per Hour',
-                data: costs
+                label: `Cost (@ ${STATE.runtimeData.unitPrice}/kWh)`,
+                data: costs,
+                backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                borderColor: 'rgba(245, 158, 11, 1)',
+                borderWidth: 1
             }]
         },
         options: {
-            ...commonOptions,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    display: true,
+                    labels: { color: 'rgba(0, 0, 0, 0.9)' }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    callbacks: {
+                        afterLabel: (ctx) => {
+                            const energy = energies[ctx.dataIndex];
+                            return `Energy: ${energy.toFixed(4)} kWh`;
+                        }
+                    }
+                },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        modifierKey: 'ctrl',
+                        mode: 'x'
+                    },
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x'
+                    }
+                }
+            },
             scales: {
                 x: {
-                    title: { display: true, text: 'Hour' }
+                    title: { display: true, text: 'Hour', color: '#000' },
+                    ticks: { color: 'rgba(0, 0, 0, 0.9)' },
+                    grid: { display: false }
                 },
                 y: {
-                    title: { display: true, text: 'Cost' },
-                    beginAtZero: true
+                    title: { display: true, text: `Cost (${STATE.runtimeData.unitPrice}/kWh)`, color: '#000' },
+                    beginAtZero: true,
+                    ticks: { color: 'rgba(0, 0, 0, 0.9)' },
+                    grid: { color: 'rgba(0, 0, 0, 0.32)' }
                 }
             }
         }
     });
+
+    console.info(`Hourly cost chart created with ${data.length} hours`);
 }
+
 window.createHourlyCostChart = createHourlyCostChart;
+window.resetZoom = resetZoom;
+window.downloadChart = downloadChart;
+
+console.info('Charts module loaded with zoom support');

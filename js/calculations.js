@@ -74,7 +74,7 @@ function calculateEnergyConsumption(data) {
         ? (dischargedEnergyWh / chargedEnergyWh) * 100
         : 100;
 
-    // Update reference
+    // Update legacy reference
     energyData = STATE.energyData;
 
     console.info('Energy calculation complete:', {
@@ -389,13 +389,17 @@ function displayStats(data) {
         </div>
     `;
 }
+
 /* ============================================================
- * Runtime + Cost (ADD ONLY)
+ * Runtime + Cost Calculations - FIXED
  * ============================================================
  */
 
 function calculateRuntimeAndCost(data) {
-    if (!Array.isArray(data) || data.length < 2) return;
+    if (!Array.isArray(data) || data.length < 2) {
+        console.warn('Insufficient data for runtime calculation');
+        return;
+    }
 
     let totalSeconds = 0;
     let energyWh = 0;
@@ -412,6 +416,7 @@ function calculateRuntimeAndCost(data) {
 
         totalSeconds += dt;
 
+        // Calculate power if not present
         let power = curr.power;
         if (!Number.isFinite(power) &&
             Number.isFinite(curr.voltage) &&
@@ -430,10 +435,18 @@ function calculateRuntimeAndCost(data) {
 
     STATE.runtimeData.energyWh = energyWh;
     STATE.runtimeData.energyKWh = energyWh / 1000;
+    
+    // Calculate hourly breakdown
     STATE.runtimeData.hourlyBreakdown = calculateHourlyCostBreakdown(data);
 
-
+    // Calculate cost with current unit price
     calculateCost();
+    
+    console.info('Runtime calculation complete:', {
+        seconds: totalSeconds.toFixed(0),
+        hours: STATE.runtimeData.hours.toFixed(3),
+        energyKWh: STATE.runtimeData.energyKWh.toFixed(4)
+    });
 }
 
 function calculateCost() {
@@ -444,11 +457,19 @@ function calculateCost() {
 
 function updateUnitPrice(price) {
     const v = Number(price);
-    if (!Number.isFinite(v) || v < 0) return;
+    if (!Number.isFinite(v) || v < 0) {
+        console.warn('Invalid unit price:', price);
+        return;
+    }
 
     STATE.runtimeData.unitPrice = v;
     calculateCost();
     displayRuntimeAndCost();
+    
+    // Update hourly breakdown with new price
+    if (STATE.currentData.length > 0) {
+        STATE.runtimeData.hourlyBreakdown = calculateHourlyCostBreakdown(STATE.currentData);
+    }
 }
 
 function displayRuntimeAndCost() {
@@ -456,7 +477,7 @@ function displayRuntimeAndCost() {
     if (!panel) return;
 
     const r = STATE.runtimeData;
-    panel.style.display = 'block';
+    panel.style.display = 'grid';
     panel.innerHTML = `
         <div class="stat-card">
             <div class="stat-label">Runtime</div>
@@ -474,7 +495,7 @@ function displayRuntimeAndCost() {
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Cost</div>
+            <div class="stat-label">Cost (@ ${r.unitPrice}/kWh)</div>
             <div class="stat-value">
                 ${r.totalCost.toFixed(2)}<br>
                 ${r.costPerHour.toFixed(2)} / hour
@@ -482,18 +503,9 @@ function displayRuntimeAndCost() {
         </div>
     `;
 }
-// Ensure functions are globally accessible
-window.displayStats = displayStats;
-window.calculateEnergyConsumption = calculateEnergyConsumption;
-window.displayEnergySummary = displayEnergySummary;
-window.smoothData = smoothData;
-window.checkAlerts = checkAlerts;
-
-
-console.info('Calculations module loaded');
 
 /* ============================================================
- * Per-Hour Cost Breakdown (ADD ONLY)
+ * Per-Hour Cost Breakdown - FIXED
  * ============================================================
  */
 
@@ -530,29 +542,56 @@ function calculateHourlyCostBreakdown(data) {
     // Convert to cost using unit price
     const unitPrice = STATE.runtimeData.unitPrice || 0;
 
-    return Object.entries(hourly).map(([hour, wh]) => ({
-        hour: Number(hour),
-        energyWh: wh,
-        energyKWh: wh / 1000,
-        cost: Math.abs(wh / 1000) * unitPrice
-    }));
+    return Object.entries(hourly)
+        .map(([hour, wh]) => ({
+            hour: Number(hour),
+            energyWh: wh,
+            energyKWh: wh / 1000,
+            cost: Math.abs(wh / 1000) * unitPrice
+        }))
+        .sort((a, b) => a.hour - b.hour); // Sort by hour
 }
-window.calculateHourlyCostBreakdown = calculateHourlyCostBreakdown;
+
 /* ============================================================
- * Tariff Presets (ADD ONLY)
+ * Tariff Presets - FIXED
  * ============================================================
  */
 
 function setTariff(price) {
     updateUnitPrice(price);
 
-    if (typeof createHourlyCostChart === 'function') {
-        createHourlyCostChart();
+    // Update the display
+    const display = document.getElementById('currentTariffDisplay');
+    if (display) {
+        display.textContent = `${price.toFixed(2)} / kWh`;
     }
 
+    // Update the custom input field to show current value
+    const input = document.getElementById('customTariffInput');
+    if (input) {
+        input.value = price;
+    }
 
-    const tariffPanel = document.getElementById('tariffPresets');
-    if (tariffPanel) tariffPanel.style.display = 'block';
+    // Recreate hourly cost chart with new tariff
+    if (typeof createHourlyCostChart === 'function' && 
+        STATE.currentData.length > 0) {
+        createHourlyCostChart();
+    }
+    
+    console.info(`Tariff set to ${price} per kWh`);
 }
+
+// Ensure functions are globally accessible
+window.displayStats = displayStats;
+window.calculateEnergyConsumption = calculateEnergyConsumption;
+window.displayEnergySummary = displayEnergySummary;
+window.smoothData = smoothData;
+window.checkAlerts = checkAlerts;
+window.calculateRuntimeAndCost = calculateRuntimeAndCost;
+window.calculateCost = calculateCost;
+window.updateUnitPrice = updateUnitPrice;
+window.displayRuntimeAndCost = displayRuntimeAndCost;
+window.calculateHourlyCostBreakdown = calculateHourlyCostBreakdown;
 window.setTariff = setTariff;
 
+console.info('Enhanced Calculations module loaded');

@@ -123,8 +123,7 @@ function processFile(file) {
         document.getElementById('energySummary').style.display = 'none';
         
         const tariffPanel = document.getElementById('tariffPresets');
-        if (tariffPanel) tariffPanel.style.display = 'block';
-
+        if (tariffPanel) tariffPanel.style.display = 'none'; // Hide initially
 
         const reader = new FileReader();
         const timeout = setTimeout(() => {
@@ -149,20 +148,34 @@ function processFile(file) {
                     throw new Error('No valid data in file');
                 }
 
-                updateProgress(75, 'Filtering data...');
+                updateProgress(65, 'Filtering data...');
                 currentData = validateAndFilterData(raw);
+                STATE.currentData = currentData;
+                
+                updateProgress(70, 'Calculating energy...');
                 calculateEnergyConsumption(currentData);
+                
+                updateProgress(75, 'Calculating runtime & cost...');
+                calculateRuntimeAndCost(currentData);
 
+                updateProgress(80, 'Smoothing data...');
                 const smoothed = smoothData(currentData);
 
+                updateProgress(85, 'Checking alerts...');
+                checkAlerts(smoothed);
+                
                 updateProgress(90, 'Rendering charts...');
                 displayStats(smoothed);
                 displayEnergySummary();
-                checkAlerts(smoothed);
+                displayRuntimeAndCost();
+                
                 createCharts(smoothed);
                 createCellCharts(smoothed);
-                createHourlyCostChart();
-
+                
+                // Create hourly cost chart (will show placeholder if no tariff set)
+                if (typeof createHourlyCostChart === 'function') {
+                    createHourlyCostChart();
+                }
 
                 if (smoothed.some(d => d.cell_voltages || d.cell_temperatures)) {
                     document.getElementById('cellChartsSection').style.display = 'block';
@@ -177,6 +190,18 @@ function processFile(file) {
                     document.getElementById('statsSection').style.display = 'grid';
                     document.getElementById('thresholdControls').style.display = 'block';
                     document.getElementById('energySummary').style.display = 'block';
+                    
+                    // Show runtime panel
+                    const runtimePanel = document.getElementById('runtimeCostSummary');
+                    if (runtimePanel) {
+                        runtimePanel.style.display = 'grid';
+                    }
+                    
+                    // Show tariff panel
+                    if (tariffPanel) {
+                        tariffPanel.style.display = 'block';
+                    }
+                    
                     animateElements();
                 }, 300);
 
@@ -198,6 +223,7 @@ function processFile(file) {
 // ==============================
 function setTimeMode(mode) {
     timeMode = mode;
+    STATE.timeMode = mode;
 
     document.querySelectorAll('.control-btn')
         .forEach(b => b.classList.remove('active'));
@@ -216,16 +242,30 @@ function setTimeMode(mode) {
     }
 
     if (currentData.length) {
-        createCharts(currentData);
+        const smoothed = smoothingEnabled ? smoothData(currentData) : currentData;
+        createCharts(smoothed);
+        if (typeof createHourlyCostChart === 'function') {
+            createHourlyCostChart();
+        }
     }
 }
 
 function toggleSmoothing() {
     smoothingEnabled = !smoothingEnabled;
+    STATE.smoothingEnabled = smoothingEnabled;
+    
     const btn = document.getElementById('smoothingBtn');
     btn.textContent = `Smoothing: ${smoothingEnabled ? 'On' : 'Off'}`;
     btn.setAttribute('aria-pressed', smoothingEnabled);
-    if (currentData.length) createCharts(currentData);
+    
+    if (currentData.length) {
+        const smoothed = smoothingEnabled ? smoothData(currentData) : currentData;
+        createCharts(smoothed);
+        createCellCharts(smoothed);
+        if (typeof createHourlyCostChart === 'function') {
+            createHourlyCostChart();
+        }
+    }
 }
 
 // ==============================
@@ -236,10 +276,13 @@ function updateThresholds() {
     thresholds.voltageHigh = +document.getElementById('thVoltageHigh').value;
     thresholds.currentMax = +document.getElementById('thCurrentMax').value;
     thresholds.socLow = +document.getElementById('thSocLow').value;
+    
+    STATE.thresholds = thresholds;
 
     if (currentData.length) {
-        checkAlerts(currentData);
-        createCharts(currentData);
+        const smoothed = smoothingEnabled ? smoothData(currentData) : currentData;
+        checkAlerts(smoothed);
+        createCharts(smoothed);
     }
 }
 
@@ -251,6 +294,42 @@ function setupDefaultThresholds() {
 }
 
 // ==============================
+// ✅ CUSTOM TARIFF HANDLER
+// ==============================
+function applyCustomTariff() {
+    const input = document.getElementById('customTariffInput');
+    if (!input) return;
+    
+    const value = parseFloat(input.value);
+    
+    if (isNaN(value) || value < 0) {
+        alert('Please enter a valid positive number for the tariff rate');
+        return;
+    }
+    
+    // Apply the tariff
+    setTariff(value);
+    
+    // Visual feedback
+    const btn = document.getElementById('applyCustomTariffBtn');
+    if (btn) {
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Applied!';
+        btn.style.background = 'var(--success)';
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+        }, 2000);
+    }
+    
+    console.info(`Custom tariff applied: ${value} per kWh`);
+}
+
+// Make it globally accessible
+window.applyCustomTariff = applyCustomTariff;
+
+// ==============================
 // INIT
 // ==============================
 function bindEvents() {
@@ -259,9 +338,19 @@ function bindEvents() {
     document.getElementById('relativeTimeBtn').addEventListener('click', () => setTimeMode('relative'));
     document.getElementById('smoothingBtn').addEventListener('click', toggleSmoothing);
     document.getElementById('exportBtn').addEventListener('click', exportData);
-    document.getElementById('exportFullBtn').addEventListener('click', exportFullData);
+    document.getElementById('exportFullBtn')?.addEventListener('click', exportFullData);
     document.getElementById('clearBtn').addEventListener('click', clearData);
     document.getElementById('updateThresholdsBtn').addEventListener('click', updateThresholds);
+    
+    // ✅ Bind custom tariff input - allow Enter key
+    const customTariffInput = document.getElementById('customTariffInput');
+    if (customTariffInput) {
+        customTariffInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                applyCustomTariff();
+            }
+        });
+    }
 
     window.addEventListener('error', e => {
         showError(`Unexpected error: ${e.error?.message || 'Unknown'}`);
@@ -271,6 +360,7 @@ function bindEvents() {
 function init() {
     bindEvents();
     setupDefaultThresholds();
+    console.info('BMS Visualizer initialized successfully');
 }
 
 document.addEventListener('DOMContentLoaded', init);
